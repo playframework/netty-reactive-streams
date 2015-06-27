@@ -131,17 +131,24 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
                         // Subscriber is provided, so set subscriber state to done
                         subscriberState.set(DONE);
                         HandlerPublisher.this.subscriber = subscriber;
-                        subscriber.onSubscribe(new ChannelSubscription());
                         switch (state) {
                             case NO_SUBSCRIBER:
-                                state = IDLE;
+                                if (buffer.isEmpty()) {
+                                    state = IDLE;
+                                } else {
+                                    state = BUFFERING;
+                                }
+                                subscriber.onSubscribe(new ChannelSubscription());
+                                break;
+                            case DRAINING:
+                                subscriber.onSubscribe(new ChannelSubscription());
                                 break;
                             case NO_SUBSCRIBER_ERROR:
                                 state = DONE;
+                                subscriber.onSubscribe(new ChannelSubscription());
                                 subscriber.onError(noSubscriberError);
                                 break;
                         }
-
                     }
                 });
                 break;
@@ -236,8 +243,9 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
             case BUFFERING:
             case DEMANDING:
             case IDLE:
-                state = DONE;
                 messageHandler.cancel(ctx);
+            case DRAINING:
+                state = DONE;
                 break;
         }
         subscriber = null;
@@ -334,6 +342,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
             case BUFFERING:
                 bufferSubscriberEvent(PublisherMessageHandler.Complete.<T>instance());
                 messageHandler.cancel(ctx);
+                state = DRAINING;
                 break;
             case DEMANDING:
             case IDLE:

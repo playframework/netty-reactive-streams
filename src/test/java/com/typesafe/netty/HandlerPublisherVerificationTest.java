@@ -1,90 +1,106 @@
 package com.typesafe.netty;
 
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelOutboundHandler;
-import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.local.LocalChannel;
-import io.netty.channel.local.LocalEventLoopGroup;
 import org.reactivestreams.Publisher;
-import org.reactivestreams.tck.PublisherVerification;
-import org.reactivestreams.tck.TestEnvironment;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.*;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
+public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVerification {
 
-public class HandlerPublisherVerificationTest extends PublisherVerification<Long> {
+    private final int batchSize;
+    // The number of elements to publish initially, before the subscriber is received
+    private final int publishInitial;
+    // Whether the end of stream should be triggered by a stream close, or by the message handler
+    private final boolean close;
+    // Whether we should use scheduled publishing (with a small delay)
+    private final boolean scheduled;
 
-    private LocalEventLoopGroup eventLoop;
-    private final AtomicLong test = new AtomicLong();
+    private ScheduledExecutorService executor;
 
-    public HandlerPublisherVerificationTest() {
-        super(new TestEnvironment(100));
+    @Factory(dataProvider = "dp")
+    public HandlerPublisherVerificationTest(int batchSize, int publishInitial, boolean close, boolean scheduled) {
+        this.batchSize = batchSize;
+        this.publishInitial = publishInitial;
+        this.close = close;
+        this.scheduled = scheduled;
     }
 
     @BeforeClass
-    public void startEventLoop() {
-        eventLoop = new LocalEventLoopGroup();
+    public void startExecutor() {
+        if (scheduled) {
+            executor = Executors.newSingleThreadScheduledExecutor();
+        }
     }
 
     @AfterClass
-    public void stopEventLoop() {
-        eventLoop.shutdownGracefully();
-        eventLoop = null;
+    public void stopExecutor() {
+        if (scheduled) {
+            executor.shutdown();
+        }
+    }
+
+    @DataProvider
+    public static Object[][] dp() {
+        List<Object[]> data = new ArrayList<>();
+        for (Boolean scheduled : Arrays.asList(false, true)) {
+            for (Boolean close : Arrays.asList(false, true)) {
+                for (int batchSize : Arrays.asList(1, 3)) {
+                    for (int publishInitial : Arrays.asList(0, 3)) {
+                        data.add(new Object[]{batchSize, publishInitial, close, scheduled});
+                    }
+                }
+            }
+        }
+        return data.toArray(new Object[][]{});
     }
 
     @Override
     public Publisher<Long> createPublisher(final long elements) {
-        final long publisherId = test.incrementAndGet();
-        HandlerPublisher<Long> publisher = new HandlerPublisher<>(createMessageHandler(elements));
+        long handlerCompleteOn = elements;
+        if (close) {
+            handlerCompleteOn = Long.MAX_VALUE;
+        }
 
-        final AtomicLong counter = new AtomicLong();
-        LocalChannel channel = new LocalChannel();
-        ChannelOutboundHandler out = new ChannelOutboundHandlerAdapter() {
+        final HandlerPublisher<Long> publisher = new HandlerPublisher<>(new BoundedMessageHandler(handlerCompleteOn));
+
+        long eofOn = Long.MAX_VALUE;
+        if (close) {
+            eofOn = elements;
+        }
+
+        final BatchedProducer out;
+        if (scheduled) {
+            out = new ScheduledBatchedProducer(executor, 5);
+        } else {
+            out = new BatchedProducer();
+        }
+        out.sequence(publishInitial)
+                .batchSize(batchSize)
+                .eofOn(eofOn);
+
+        final LocalChannel channel = new LocalChannel();
+        eventLoop.register(channel).addListener(new ChannelFutureListener() {
             @Override
-            public void read(final ChannelHandlerContext ctx) throws Exception {
-                ctx.executor().execute(new Runnable() {
-                    public void run() {
-                        ctx.fireChannelRead(counter.getAndIncrement());
-                        ctx.fireChannelRead(counter.getAndIncrement());
-                        ctx.fireChannelReadComplete();
-                    }
-                });
-            }
-        };
-        eventLoop.register(channel);
-        channel.pipeline().addLast("out", out);
-        channel.pipeline().addLast("publisher", publisher);
+            public void operationComplete(ChannelFuture future) throws Exception {
+                channel.pipeline().addLast("out", out);
+                channel.pipeline().addLast("publisher", publisher);
 
-        return publisher;
-    }
-
-    @Override
-    public Publisher<Long> createFailedPublisher() {
-        HandlerPublisher<Long> publisher = new HandlerPublisher<>(createMessageHandler(0));
-        LocalChannel channel = new LocalChannel();
-        eventLoop.register(channel);
-        channel.pipeline().addLast("publisher", publisher);
-        channel.pipeline().fireExceptionCaught(new RuntimeException("failed"));
-
-        return publisher;
-    }
-
-    private PublisherMessageHandler<Long> createMessageHandler(final long elements) {
-        return new PublisherMessageHandler<Long>() {
-            public SubscriberEvent<Long> transform(Object message, ChannelHandlerContext ctx) {
-                long item = (Long) message;
-                if (item == elements && elements != Long.MAX_VALUE) {
-                    return Complete.instance();
-                } else {
-                    return new Next<>(item);
+                for (long i = 0; i < publishInitial && i < elements; i++) {
+                    channel.pipeline().fireChannelRead(i);
+                }
+                if (elements <= publishInitial) {
+                    channel.pipeline().fireChannelInactive();
                 }
             }
-            public void messageDropped(Object message, ChannelHandlerContext ctx) {
-            }
-            public void cancel(ChannelHandlerContext ctx) {
-            }
-        };
+        });
+
+        return publisher;
     }
 }
