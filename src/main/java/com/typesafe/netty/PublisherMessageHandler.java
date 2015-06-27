@@ -20,6 +20,11 @@ public interface PublisherMessageHandler<T> {
      * subscriber will be completed. If {@link Error} is returned, the subscriber will be passed the error.
      * If {@link Drop} is returned, the message will be dropped, it won't be handled in any way.
      *
+     * The HandlerPublisher will never release reference counted messages that it passes to this method, so this method
+     * has to either release them itself, or return them as next to let the subscriber handle and release them. The
+     * HandlerPublisher will only release returned next messages if the subscriber cancels or is finished with an error
+     * while there are still messages buffered to send it.
+     *
      * In addition to transforming the message, this method is also passed the {@link ChannelHandlerContext} for the
      * handler, which gives this method the opportunity to interact with the channel and pipeline. For example, when
      * a certain type of message is received, this handler may decide to remove itself from the pipeline, or close the

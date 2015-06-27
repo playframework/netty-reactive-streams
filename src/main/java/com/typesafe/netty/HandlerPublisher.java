@@ -2,6 +2,7 @@ package com.typesafe.netty;
 
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.ReferenceCountUtil;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -144,6 +145,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
                                 subscriber.onSubscribe(new ChannelSubscription());
                                 break;
                             case NO_SUBSCRIBER_ERROR:
+                                cleanup();
                                 state = DONE;
                                 subscriber.onSubscribe(new ChannelSubscription());
                                 subscriber.onError(noSubscriberError);
@@ -217,6 +219,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
     }
 
     private void illegalDemand() {
+        cleanup();
         subscriber.onError(new IllegalArgumentException("Request for 0 or negative elements in violation of Section 3.9 of the Reactive Streams specification"));
         messageHandler.cancel(ctx);
         state = DONE;
@@ -248,6 +251,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
                 state = DONE;
                 break;
         }
+        cleanup();
         subscriber = null;
     }
 
@@ -281,6 +285,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
             buffer.add(event);
             state = DRAINING;
         } else if (event instanceof PublisherMessageHandler.Error) {
+            cleanup();
             subscriber.onError(((PublisherMessageHandler.Error) event).getError());
             state = DONE;
         } else if (event instanceof PublisherMessageHandler.Drop) {
@@ -359,15 +364,30 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
             case NO_SUBSCRIBER:
                 noSubscriberError = cause;
                 state = NO_SUBSCRIBER_ERROR;
+                cleanup();
                 messageHandler.cancel(ctx);
                 break;
             case BUFFERING:
             case DEMANDING:
             case IDLE:
+            case DRAINING:
+                state = DONE;
+                cleanup();
                 subscriber.onError(cause);
                 messageHandler.cancel(ctx);
-                state = DONE;
                 break;
+        }
+    }
+
+    /**
+     * Release all elements from the buffer.
+     */
+    private void cleanup() {
+        while (!buffer.isEmpty()) {
+            PublisherMessageHandler.SubscriberEvent<T> event = buffer.remove();
+            if (event instanceof PublisherMessageHandler.Next) {
+                ReferenceCountUtil.release(((PublisherMessageHandler.Next) event).getMessage());
+            }
         }
     }
 
