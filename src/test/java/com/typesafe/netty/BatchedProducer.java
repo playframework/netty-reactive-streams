@@ -12,7 +12,6 @@ import io.netty.channel.ChannelPromise;
  */
 public class BatchedProducer extends ChannelOutboundHandlerAdapter {
 
-    protected boolean sendComplete = false;
     protected long eofOn = Long.MAX_VALUE;
     protected int batchSize = 1;
     protected long sequence = 0;
@@ -24,7 +23,7 @@ public class BatchedProducer extends ChannelOutboundHandlerAdapter {
         if (cancelled) {
             throw new IllegalStateException("Received demand after being cancelled");
         }
-        ctx.executor().execute(new Runnable() {
+        ctx.pipeline().channel().eventLoop().parent().execute(new Runnable() {
             @Override
             public void run() {
                 for (int i = 0; i < batchSize && sequence != eofOn; i++) {
@@ -32,11 +31,7 @@ public class BatchedProducer extends ChannelOutboundHandlerAdapter {
                     sequence++;
                 }
                 if (eofOn == sequence) {
-                    if (sendComplete) {
-                        ctx.fireChannelRead(HandlerPublisher.COMPLETE);
-                    } else {
-                        ctx.fireChannelInactive();
-                    }
+                    ctx.fireChannelInactive();
                 } else {
                     ctx.fireChannelReadComplete();
                 }
@@ -50,11 +45,6 @@ public class BatchedProducer extends ChannelOutboundHandlerAdapter {
             throw new IllegalStateException("Cancelled twice");
         }
         cancelled = true;
-    }
-
-    public BatchedProducer sendComplete(boolean sendComplete) {
-        this.sendComplete = sendComplete;
-        return this;
     }
 
     public BatchedProducer batchSize(int batchSize) {

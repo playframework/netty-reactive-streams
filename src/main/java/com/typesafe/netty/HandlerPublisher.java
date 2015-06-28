@@ -25,8 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * The handler publishes all messages that match the type as specified by the passed in class. Any non matching messages
  * are forwarded to the next handler.
  *
- * The publisher will signal complete to the subscriber under two circumstances, if the channel goes inactive, or if a
- * {@link com.typesafe.netty.HandlerPublisher#COMPLETE} message is received.
+ * The publisher will signal complete if it receives a channel inactive event.
  *
  * The publisher will release any messages that it drops (for example, messages that are buffered when the subscriber
  * cancels), but other than that, it does not release any messages.  It is up to the subscriber to release messages.
@@ -41,27 +40,6 @@ import java.util.concurrent.atomic.AtomicReference;
 public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publisher<T> {
 
     private final TypeParameterMatcher matcher;
-
-    public static final class Complete {
-        private Complete() {}
-
-        public boolean equals(Object obj) {
-            return obj instanceof Complete;
-        }
-
-        public int hashCode() {
-            return Complete.class.hashCode();
-        }
-
-        public String toString() {
-            return "COMPLETE";
-        }
-    }
-
-    /**
-     * A complete message. Used to signal completion of the stream.
-     */
-    public static final Complete COMPLETE = new Complete();
 
     /**
      * Create a handler publisher.
@@ -291,22 +269,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object message) throws Exception {
-        if (COMPLETE.equals(message)) {
-            switch (state) {
-                case NO_SUBSCRIBER:
-                case BUFFERING:
-                    buffer.add(message);
-                    break;
-                case DEMANDING:
-                case IDLE:
-                    publishMessage(message);
-                    break;
-                case NO_CONTEXT:
-                case NO_SUBSCRIBER_OR_CONTEXT:
-                    throw new IllegalStateException("Message received before added to the channel context");
-
-            }
-        } else if (acceptInboundMessage(message)) {
+        if (acceptInboundMessage(message)) {
             switch (state) {
                 case IDLE:
                     buffer.add(message);
@@ -364,6 +327,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         switch (state) {
             case NO_SUBSCRIBER:
+            case NO_SUBSCRIBER_ERROR:
             case BUFFERING:
                 buffer.add(COMPLETE);
                 state = DRAINING;
@@ -426,4 +390,8 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
         }
     }
 
+    /**
+     * Used for buffering a completion signal.
+     */
+    private static final Object COMPLETE = new Object();
 }

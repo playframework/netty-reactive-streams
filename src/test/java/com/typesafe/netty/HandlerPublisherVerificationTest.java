@@ -17,8 +17,6 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
     private final int batchSize;
     // The number of elements to publish initially, before the subscriber is received
     private final int publishInitial;
-    // Whether the end of stream should be triggered by sending a complete message, or closing the handler
-    private final boolean sendComplete;
     // Whether we should use scheduled publishing (with a small delay)
     private final boolean scheduled;
 
@@ -26,21 +24,19 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
 
     // For debugging, change the data provider to simple, and adjust the parameters below
     @Factory(dataProvider = "full")
-    public HandlerPublisherVerificationTest(int batchSize, int publishInitial, boolean sendComplete, boolean scheduled) {
+    public HandlerPublisherVerificationTest(int batchSize, int publishInitial, boolean scheduled) {
         this.batchSize = batchSize;
         this.publishInitial = publishInitial;
-        this.sendComplete = sendComplete;
         this.scheduled = scheduled;
     }
 
     @DataProvider
     public static Object[][] simple() {
         boolean scheduled = false;
-        boolean sendComplete = true;
         int batchSize = 2;
         int publishInitial = 0;
         return new Object[][] {
-                new Object[] {batchSize, publishInitial, sendComplete, scheduled}
+                new Object[] {batchSize, publishInitial, scheduled}
         };
     }
 
@@ -62,11 +58,9 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
     public static Object[][] full() {
         List<Object[]> data = new ArrayList<>();
         for (Boolean scheduled : Arrays.asList(false, true)) {
-            for (Boolean sendComplete : Arrays.asList(true, false)) {
-                for (int batchSize : Arrays.asList(1, 3)) {
-                    for (int publishInitial : Arrays.asList(0, 3)) {
-                        data.add(new Object[]{batchSize, publishInitial, sendComplete, scheduled});
-                    }
+            for (int batchSize : Arrays.asList(1, 3)) {
+                for (int publishInitial : Arrays.asList(0, 3)) {
+                    data.add(new Object[]{batchSize, publishInitial, scheduled});
                 }
             }
         }
@@ -76,10 +70,10 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
     @DataProvider
     public static Object[][] noScheduled() {
         List<Object[]> data = new ArrayList<>();
-        for (Boolean sendComplete : Arrays.asList(true, false)) {
+        for (Boolean removeHandler : Arrays.asList(true, false)) {
             for (int batchSize : Arrays.asList(1, 3)) {
                 for (int publishInitial : Arrays.asList(0, 3)) {
-                    data.add(new Object[]{batchSize, publishInitial, sendComplete, false});
+                    data.add(new Object[]{batchSize, publishInitial, removeHandler, false});
                 }
             }
         }
@@ -98,8 +92,7 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
         }
         out.sequence(publishInitial)
                 .batchSize(batchSize)
-                .eofOn(elements)
-                .sendComplete(sendComplete);
+                .eofOn(elements);
 
         final LocalChannel channel = new LocalChannel();
         eventLoop.register(channel).addListener(new ChannelFutureListener() {

@@ -34,11 +34,7 @@ public class ScheduledBatchedProducer extends BatchedProducer {
                     @Override
                     public void run() {
                         if (eofOn == sequence) {
-                            if (sendComplete) {
-                                ctx.fireChannelRead(HandlerPublisher.COMPLETE);
-                            } else {
-                                ctx.fireChannelInactive();
-                            }
+                            ctx.fireChannelInactive();
                         } else {
                             ctx.fireChannelReadComplete();
                         }
