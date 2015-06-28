@@ -2,7 +2,10 @@ package com.typesafe.netty;
 
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandler;
+import io.netty.channel.ChannelPipeline;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.internal.TypeParameterMatcher;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -19,13 +22,63 @@ import java.util.concurrent.atomic.AtomicReference;
  * All interactions with the subscriber are done from the handlers executor, hence, they provide the same happens before
  * semantics that Netty provides.
  *
- * A HandlerPublisher uses a {@link PublisherMessageHandler} to decide how to handle messages it receives. This allows,
- * for example, the publisher to be used to publish a part of the stream, while the handler can be replaced to handle
- * the rest.
+ * The handler publishes all messages that match the type as specified by the passed in class. Any non matching messages
+ * are forwarded to the next handler.
+ *
+ * The publisher will signal complete to the subscriber under two circumstances, if the channel goes inactive, or if a
+ * {@link com.typesafe.netty.HandlerPublisher#COMPLETE} message is received.
+ *
+ * The publisher will release any messages that it drops (for example, messages that are buffered when the subscriber
+ * cancels), but other than that, it does not release any messages.  It is up to the subscriber to release messages.
+ *
+ * If the subscriber cancels, the publisher will send a disconnect event up the channel pipeline.
+ *
+ * All errors will short circuit the buffer, and cause publisher to immediately call the subscribers onError method,
+ * dropping the buffer.
  *
  * The publisher can be subscribed to or placed in a handler chain in any order.
  */
 public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publisher<T> {
+
+    private final TypeParameterMatcher matcher;
+
+    public static final class Complete {
+        private Complete() {}
+
+        public boolean equals(Object obj) {
+            return obj instanceof Complete;
+        }
+
+        public int hashCode() {
+            return Complete.class.hashCode();
+        }
+
+        public String toString() {
+            return "COMPLETE";
+        }
+    }
+
+    /**
+     * A complete message. Used to signal completion of the stream.
+     */
+    public static final Complete COMPLETE = new Complete();
+
+    /**
+     * Create a handler publisher.
+     *
+     * @param subscriberMessageType The type of message this publisher accepts.
+     */
+    public HandlerPublisher(Class<? extends T> subscriberMessageType) {
+        this.matcher = TypeParameterMatcher.get(subscriberMessageType);
+    }
+
+    /**
+     * Returns {@code true} if the given message should be handled. If {@code false} it will be passed to the next
+     * {@link ChannelInboundHandler} in the {@link ChannelPipeline}.
+     */
+    protected boolean acceptInboundMessage(Object msg) throws Exception {
+        return matcher.match(msg);
+    }
 
     enum State {
         /**
@@ -74,27 +127,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
         DONE
     }
 
-    /**
-     * Create a HandlerPublisher with the given messageHandler.
-     */
-    public HandlerPublisher(PublisherMessageHandler<T> messageHandler) {
-        this.messageHandler = messageHandler;
-    }
-
-    /**
-     * Create a HandlerPublisher with an already provided subscriber.
-     *
-     * Intended for use with a multicast publisher, which creates a new pipeline (connection) for each subscriber
-     * received.
-     */
-    HandlerPublisher(PublisherMessageHandler<T> messageHandler, Subscriber<? super T> subscriber) {
-        this(messageHandler);
-        subscribe(subscriber);
-    }
-
-    private final Queue<PublisherMessageHandler.SubscriberEvent<T>> buffer = new LinkedList<>();
-
-    private final PublisherMessageHandler<T> messageHandler;
+    private final Queue<Object> buffer = new LinkedList<>();
 
     /**
      * This is used before a context is provided - once a context is provided, it's not needed, since every event is
@@ -126,6 +159,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
                 // Otherwise, we have a context, so let it fall through to the no subscriber behaviour, which is done
                 // on the context executor.
             case NO_SUBSCRIBER:
+            case NO_SUBSCRIBER_ERROR:
                 ctx.executor().execute(new Runnable() {
                     @Override
                     public void run() {
@@ -221,13 +255,13 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
     private void illegalDemand() {
         cleanup();
         subscriber.onError(new IllegalArgumentException("Request for 0 or negative elements in violation of Section 3.9 of the Reactive Streams specification"));
-        messageHandler.cancel(ctx);
+        ctx.disconnect();
         state = DONE;
     }
 
     private void flushBuffer() {
         while (!buffer.isEmpty() && (outstandingDemand > 0 || outstandingDemand == Long.MAX_VALUE)) {
-            publishSubscriberEvent(buffer.remove());
+            publishMessage(buffer.remove());
         }
         if (buffer.isEmpty()) {
             if (outstandingDemand > 0) {
@@ -246,7 +280,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
             case BUFFERING:
             case DEMANDING:
             case IDLE:
-                messageHandler.cancel(ctx);
+                ctx.disconnect();
             case DRAINING:
                 state = DONE;
                 break;
@@ -256,62 +290,56 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        switch (state) {
-            case IDLE:
-                idleSubscriberEvent(messageHandler.transform(msg, ctx));
-                break;
-            case NO_SUBSCRIBER:
-            case BUFFERING:
-                bufferSubscriberEvent(messageHandler.transform(msg, ctx));
-                break;
-            case DEMANDING:
-                publishSubscriberEvent(messageHandler.transform(msg, ctx));
-                break;
-            case DRAINING:
-            case DONE:
-                messageHandler.messageDropped(msg, ctx);
-                break;
-            case NO_CONTEXT:
-            case NO_SUBSCRIBER_OR_CONTEXT:
-                throw new IllegalStateException("Message received before added to the channel context");
+    public void channelRead(ChannelHandlerContext ctx, Object message) throws Exception {
+        if (COMPLETE.equals(message)) {
+            switch (state) {
+                case NO_SUBSCRIBER:
+                case BUFFERING:
+                    buffer.add(message);
+                    break;
+                case DEMANDING:
+                case IDLE:
+                    publishMessage(message);
+                    break;
+                case NO_CONTEXT:
+                case NO_SUBSCRIBER_OR_CONTEXT:
+                    throw new IllegalStateException("Message received before added to the channel context");
+
+            }
+        } else if (acceptInboundMessage(message)) {
+            switch (state) {
+                case IDLE:
+                    buffer.add(message);
+                    state = BUFFERING;
+                    break;
+                case NO_SUBSCRIBER:
+                case BUFFERING:
+                    buffer.add(message);
+                    break;
+                case DEMANDING:
+                    publishMessage(message);
+                    break;
+                case DRAINING:
+                case DONE:
+                    ReferenceCountUtil.release(message);
+                    break;
+                case NO_CONTEXT:
+                case NO_SUBSCRIBER_OR_CONTEXT:
+                    throw new IllegalStateException("Message received before added to the channel context");
+            }
+        } else {
+            ctx.fireChannelRead(message);
         }
     }
 
-    private void bufferSubscriberEvent(PublisherMessageHandler.SubscriberEvent<T> event) {
-        if (event instanceof PublisherMessageHandler.Next) {
-            buffer.add(event);
-        } else if (event instanceof PublisherMessageHandler.Complete) {
-            buffer.add(event);
-            state = DRAINING;
-        } else if (event instanceof PublisherMessageHandler.Error) {
-            cleanup();
-            subscriber.onError(((PublisherMessageHandler.Error) event).getError());
-            state = DONE;
-        } else if (event instanceof PublisherMessageHandler.Drop) {
-            // Ignore
-        }
-    }
-
-    private void idleSubscriberEvent(PublisherMessageHandler.SubscriberEvent<T> event) {
-        if (event instanceof PublisherMessageHandler.Next) {
-            buffer.add(event);
-            state = BUFFERING;
-        } else if (event instanceof PublisherMessageHandler.Complete) {
+    private void publishMessage(Object message) {
+        if (COMPLETE.equals(message)) {
             subscriber.onComplete();
             state = DONE;
-        } else if (event instanceof PublisherMessageHandler.Error) {
-            subscriber.onError(((PublisherMessageHandler.Error) event).getError());
-            state = DONE;
-        } else if (event instanceof PublisherMessageHandler.Drop) {
-            // Ignore
-        }
-    }
-
-    private void publishSubscriberEvent(PublisherMessageHandler.SubscriberEvent<T> event) {
-        if (event instanceof PublisherMessageHandler.Next) {
-            T message = ((PublisherMessageHandler.Next<T>) event).getMessage();
-            subscriber.onNext(message);
+        } else {
+            @SuppressWarnings("unchecked")
+            T next = (T) message;
+            subscriber.onNext(next);
             if (outstandingDemand < Long.MAX_VALUE) {
                 outstandingDemand--;
                 if (outstandingDemand == 0 && state != DRAINING) {
@@ -322,14 +350,6 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
                     }
                 }
             }
-        } else if (event instanceof PublisherMessageHandler.Complete) {
-            subscriber.onComplete();
-            state = DONE;
-        } else if (event instanceof PublisherMessageHandler.Error) {
-            subscriber.onError(((PublisherMessageHandler.Error<T>) event).getError());
-            state = DONE;
-        } else if (event instanceof PublisherMessageHandler.Drop) {
-            // Ignore
         }
     }
 
@@ -345,14 +365,12 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
         switch (state) {
             case NO_SUBSCRIBER:
             case BUFFERING:
-                bufferSubscriberEvent(PublisherMessageHandler.Complete.<T>instance());
-                messageHandler.cancel(ctx);
+                buffer.add(COMPLETE);
                 state = DRAINING;
                 break;
             case DEMANDING:
             case IDLE:
                 subscriber.onComplete();
-                messageHandler.cancel(ctx);
                 state = DONE;
                 break;
         }
@@ -365,7 +383,6 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
                 noSubscriberError = cause;
                 state = NO_SUBSCRIBER_ERROR;
                 cleanup();
-                messageHandler.cancel(ctx);
                 break;
             case BUFFERING:
             case DEMANDING:
@@ -374,7 +391,6 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
                 state = DONE;
                 cleanup();
                 subscriber.onError(cause);
-                messageHandler.cancel(ctx);
                 break;
         }
     }
@@ -384,10 +400,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
      */
     private void cleanup() {
         while (!buffer.isEmpty()) {
-            PublisherMessageHandler.SubscriberEvent<T> event = buffer.remove();
-            if (event instanceof PublisherMessageHandler.Next) {
-                ReferenceCountUtil.release(((PublisherMessageHandler.Next) event).getMessage());
-            }
+            ReferenceCountUtil.release(buffer.remove());
         }
     }
 
@@ -412,4 +425,5 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
             });
         }
     }
+
 }

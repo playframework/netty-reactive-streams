@@ -32,7 +32,7 @@ abstract class AbstractHandlerPublisherVerification extends PublisherVerificatio
 
     @Override
     public Publisher<Long> createFailedPublisher() {
-        HandlerPublisher<Long> publisher = new HandlerPublisher<>(new BoundedMessageHandler(0));
+        HandlerPublisher<Long> publisher = new HandlerPublisher<>(Long.class);
         LocalChannel channel = new LocalChannel();
         eventLoop.register(channel);
         channel.pipeline().addLast("publisher", publisher);

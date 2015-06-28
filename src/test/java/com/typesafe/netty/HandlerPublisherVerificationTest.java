@@ -17,19 +17,31 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
     private final int batchSize;
     // The number of elements to publish initially, before the subscriber is received
     private final int publishInitial;
-    // Whether the end of stream should be triggered by a stream close, or by the message handler
-    private final boolean close;
+    // Whether the end of stream should be triggered by sending a complete message, or closing the handler
+    private final boolean sendComplete;
     // Whether we should use scheduled publishing (with a small delay)
     private final boolean scheduled;
 
     private ScheduledExecutorService executor;
 
-    @Factory(dataProvider = "dp")
-    public HandlerPublisherVerificationTest(int batchSize, int publishInitial, boolean close, boolean scheduled) {
+    // For debugging, change the data provider to simple, and adjust the parameters below
+    @Factory(dataProvider = "full")
+    public HandlerPublisherVerificationTest(int batchSize, int publishInitial, boolean sendComplete, boolean scheduled) {
         this.batchSize = batchSize;
         this.publishInitial = publishInitial;
-        this.close = close;
+        this.sendComplete = sendComplete;
         this.scheduled = scheduled;
+    }
+
+    @DataProvider
+    public static Object[][] simple() {
+        boolean scheduled = false;
+        boolean sendComplete = true;
+        int batchSize = 2;
+        int publishInitial = 0;
+        return new Object[][] {
+                new Object[] {batchSize, publishInitial, sendComplete, scheduled}
+        };
     }
 
     @BeforeClass
@@ -47,14 +59,27 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
     }
 
     @DataProvider
-    public static Object[][] dp() {
+    public static Object[][] full() {
         List<Object[]> data = new ArrayList<>();
         for (Boolean scheduled : Arrays.asList(false, true)) {
-            for (Boolean close : Arrays.asList(false, true)) {
+            for (Boolean sendComplete : Arrays.asList(true, false)) {
                 for (int batchSize : Arrays.asList(1, 3)) {
                     for (int publishInitial : Arrays.asList(0, 3)) {
-                        data.add(new Object[]{batchSize, publishInitial, close, scheduled});
+                        data.add(new Object[]{batchSize, publishInitial, sendComplete, scheduled});
                     }
+                }
+            }
+        }
+        return data.toArray(new Object[][]{});
+    }
+
+    @DataProvider
+    public static Object[][] noScheduled() {
+        List<Object[]> data = new ArrayList<>();
+        for (Boolean sendComplete : Arrays.asList(true, false)) {
+            for (int batchSize : Arrays.asList(1, 3)) {
+                for (int publishInitial : Arrays.asList(0, 3)) {
+                    data.add(new Object[]{batchSize, publishInitial, sendComplete, false});
                 }
             }
         }
@@ -63,17 +88,7 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
 
     @Override
     public Publisher<Long> createPublisher(final long elements) {
-        long handlerCompleteOn = elements;
-        if (close) {
-            handlerCompleteOn = Long.MAX_VALUE;
-        }
-
-        final HandlerPublisher<Long> publisher = new HandlerPublisher<>(new BoundedMessageHandler(handlerCompleteOn));
-
-        long eofOn = Long.MAX_VALUE;
-        if (close) {
-            eofOn = elements;
-        }
+        final HandlerPublisher<Long> publisher = new HandlerPublisher<>(Long.class);
 
         final BatchedProducer out;
         if (scheduled) {
@@ -83,7 +98,8 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
         }
         out.sequence(publishInitial)
                 .batchSize(batchSize)
-                .eofOn(eofOn);
+                .eofOn(elements)
+                .sendComplete(sendComplete);
 
         final LocalChannel channel = new LocalChannel();
         eventLoop.register(channel).addListener(new ChannelFutureListener() {

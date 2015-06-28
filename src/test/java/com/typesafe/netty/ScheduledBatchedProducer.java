@@ -1,7 +1,6 @@
 package com.typesafe.netty;
 
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelOutboundHandlerAdapter;
 
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -35,7 +34,11 @@ public class ScheduledBatchedProducer extends BatchedProducer {
                     @Override
                     public void run() {
                         if (eofOn == sequence) {
-                            ctx.fireChannelInactive();
+                            if (sendComplete) {
+                                ctx.fireChannelRead(HandlerPublisher.COMPLETE);
+                            } else {
+                                ctx.fireChannelInactive();
+                            }
                         } else {
                             ctx.fireChannelReadComplete();
                         }
