@@ -3,7 +3,10 @@ package com.typesafe.netty;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.local.LocalChannel;
+import io.netty.channel.local.LocalEventLoopGroup;
 import org.reactivestreams.Publisher;
+import org.reactivestreams.tck.PublisherVerification;
+import org.reactivestreams.tck.TestEnvironment;
 import org.testng.annotations.*;
 
 import java.util.ArrayList;
@@ -12,7 +15,7 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVerification {
+public class HandlerPublisherVerificationTest extends PublisherVerification<Long> {
 
     private final int batchSize;
     // The number of elements to publish initially, before the subscriber is received
@@ -21,10 +24,12 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
     private final boolean scheduled;
 
     private ScheduledExecutorService executor;
+    private LocalEventLoopGroup eventLoop;
 
     // For debugging, change the data provider to simple, and adjust the parameters below
     @Factory(dataProvider = "noScheduled")
     public HandlerPublisherVerificationTest(int batchSize, int publishInitial, boolean scheduled) {
+        super(new TestEnvironment(200));
         this.batchSize = batchSize;
         this.publishInitial = publishInitial;
         this.scheduled = scheduled;
@@ -38,20 +43,6 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
         return new Object[][] {
                 new Object[] {batchSize, publishInitial, scheduled}
         };
-    }
-
-    @BeforeClass
-    public void startExecutor() {
-        if (scheduled) {
-            executor = Executors.newSingleThreadScheduledExecutor();
-        }
-    }
-
-    @AfterClass
-    public void stopExecutor() {
-        if (scheduled) {
-            executor.shutdown();
-        }
     }
 
     @DataProvider
@@ -76,6 +67,34 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
             }
         }
         return data.toArray(new Object[][]{});
+    }
+
+    // I tried making this before/after class, but encountered a strange error where after 32 publishers were created,
+    // the following tests complained about the executor being shut down when I registered the channel. Though, it
+    // doesn't happen if you create 32 publishers in a single test.
+    @BeforeMethod
+    public void startEventLoop() {
+        eventLoop = new LocalEventLoopGroup();
+    }
+
+    @AfterMethod
+    public void stopEventLoop() {
+        eventLoop.shutdownGracefully();
+        eventLoop = null;
+    }
+
+    @BeforeClass
+    public void startExecutor() {
+        if (scheduled) {
+            executor = Executors.newSingleThreadScheduledExecutor();
+        }
+    }
+
+    @AfterClass
+    public void stopExecutor() {
+        if (scheduled) {
+            executor.shutdown();
+        }
     }
 
     @Override
@@ -107,6 +126,17 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
                 }
             }
         });
+
+        return publisher;
+    }
+
+    @Override
+    public Publisher<Long> createFailedPublisher() {
+        HandlerPublisher<Long> publisher = new HandlerPublisher<>(Long.class);
+        LocalChannel channel = new LocalChannel();
+        eventLoop.register(channel);
+        channel.pipeline().addLast("publisher", publisher);
+        channel.pipeline().fireExceptionCaught(new RuntimeException("failed"));
 
         return publisher;
     }
