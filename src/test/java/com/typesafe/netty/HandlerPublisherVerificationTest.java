@@ -23,7 +23,7 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
     private ScheduledExecutorService executor;
 
     // For debugging, change the data provider to simple, and adjust the parameters below
-    @Factory(dataProvider = "full")
+    @Factory(dataProvider = "noScheduled")
     public HandlerPublisherVerificationTest(int batchSize, int publishInitial, boolean scheduled) {
         this.batchSize = batchSize;
         this.publishInitial = publishInitial;
@@ -70,11 +70,9 @@ public class HandlerPublisherVerificationTest extends AbstractHandlerPublisherVe
     @DataProvider
     public static Object[][] noScheduled() {
         List<Object[]> data = new ArrayList<>();
-        for (Boolean removeHandler : Arrays.asList(true, false)) {
-            for (int batchSize : Arrays.asList(1, 3)) {
-                for (int publishInitial : Arrays.asList(0, 3)) {
-                    data.add(new Object[]{batchSize, publishInitial, removeHandler, false});
-                }
+        for (int batchSize : Arrays.asList(1, 3)) {
+            for (int publishInitial : Arrays.asList(0, 3)) {
+                data.add(new Object[]{batchSize, publishInitial, false});
             }
         }
         return data.toArray(new Object[][]{});
