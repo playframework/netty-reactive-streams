@@ -12,6 +12,7 @@ import org.reactivestreams.Subscription;
 import static com.typesafe.netty.HandlerPublisher.State.*;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -108,13 +109,19 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
     private final Queue<Object> buffer = new LinkedList<>();
 
     /**
+     * Whether a subscriber has been provided. This is used to detect whether two subscribers are subscribing
+     * simultaneously.
+     */
+    private final AtomicBoolean hasSubscriber = new AtomicBoolean();
+
+    /**
      * This is used before a context is provided - once a context is provided, it's not needed, since every event is
      * submitted to the contexts executor to be run on the handlers thread.
      *
-     * It only has three possible states, NO_SUBSCRIBER_OR_CONTEXT, NO_SUBSCRIBER, or DONE, meaning a subscriber has
-     * been provided.
+     * It only has five possible states, NO_SUBSCRIBER_OR_CONTEXT, NO_SUBSCRIBER, NO_SUBSCRIBER_ERROR, NO_CONTEXT,
+     * or DONE.
      */
-    private final AtomicReference<State> subscriberState = new AtomicReference<>(State.NO_SUBSCRIBER_OR_CONTEXT);
+    private final AtomicReference<State> subscriberContextState = new AtomicReference<>(State.NO_SUBSCRIBER_OR_CONTEXT);
     private State state = NO_SUBSCRIBER_OR_CONTEXT;
 
     private volatile ChannelHandlerContext ctx;
@@ -127,63 +134,80 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
         if (subscriber == null) {
             throw new NullPointerException("Null subscriber");
         }
-        switch(subscriberState.get()) {
-            case NO_SUBSCRIBER_OR_CONTEXT:
-                this.subscriber = subscriber;
-                if (subscriberState.compareAndSet(NO_SUBSCRIBER_OR_CONTEXT, NO_CONTEXT)) {
-                    // It's set
-                    break;
+
+        if (!hasSubscriber.compareAndSet(false, true)) {
+            // Must call onSubscribe first.
+            subscriber.onSubscribe(new Subscription() {
+                @Override
+                public void request(long n) {
                 }
-                // Otherwise, we have a context, so let it fall through to the no subscriber behaviour, which is done
-                // on the context executor.
-            case NO_SUBSCRIBER:
-            case NO_SUBSCRIBER_ERROR:
-                ctx.executor().execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        // Subscriber is provided, so set subscriber state to done
-                        subscriberState.set(DONE);
-                        HandlerPublisher.this.subscriber = subscriber;
-                        switch (state) {
-                            case NO_SUBSCRIBER:
-                                if (buffer.isEmpty()) {
-                                    state = IDLE;
-                                } else {
-                                    state = BUFFERING;
-                                }
-                                subscriber.onSubscribe(new ChannelSubscription());
-                                break;
-                            case DRAINING:
-                                subscriber.onSubscribe(new ChannelSubscription());
-                                break;
-                            case NO_SUBSCRIBER_ERROR:
-                                cleanup();
-                                state = DONE;
-                                subscriber.onSubscribe(new ChannelSubscription());
-                                subscriber.onError(noSubscriberError);
-                                break;
-                        }
+                @Override
+                public void cancel() {
+                }
+            });
+            subscriber.onError(new IllegalStateException("This publisher only supports one subscriber"));
+        } else {
+            switch(subscriberContextState.get()) {
+                case NO_SUBSCRIBER_OR_CONTEXT:
+                    this.subscriber = subscriber;
+                    if (subscriberContextState.compareAndSet(NO_SUBSCRIBER_OR_CONTEXT, NO_CONTEXT)) {
+                        // It's set
+                        break;
                     }
-                });
+                    // Otherwise, a context was supplied since initially checking the state, so let it fall through to
+                    // the no subscriber behaviour, which is done on the context executor.
+                case NO_SUBSCRIBER:
+                case NO_SUBSCRIBER_ERROR:
+                    ctx.executor().execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            provideSubscriber(subscriber);
+                        }
+                    });
+                    break;
+            }
+        }
+    }
+
+    private void provideSubscriber(Subscriber<? super T> subscriber) {
+        // Subscriber is provided, so set subscriber state to done
+        subscriberContextState.set(DONE);
+
+        this.subscriber = subscriber;
+        switch (state) {
+            case NO_SUBSCRIBER:
+                if (buffer.isEmpty()) {
+                    state = IDLE;
+                } else {
+                    state = BUFFERING;
+                }
+                subscriber.onSubscribe(new ChannelSubscription());
                 break;
-            default:
-                subscriber.onError(new IllegalStateException("This publisher only supports one subscriber"));
+            case DRAINING:
+                subscriber.onSubscribe(new ChannelSubscription());
+                break;
+            case NO_SUBSCRIBER_ERROR:
+                cleanup();
+                state = DONE;
+                subscriber.onSubscribe(new ChannelSubscription());
+                subscriber.onError(noSubscriberError);
+                break;
         }
     }
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
-        switch(subscriberState.get()) {
+        switch(subscriberContextState.get()) {
             case NO_SUBSCRIBER_OR_CONTEXT:
                 this.ctx = ctx;
-                if (subscriberState.compareAndSet(NO_SUBSCRIBER_OR_CONTEXT, NO_SUBSCRIBER)) {
+                if (subscriberContextState.compareAndSet(NO_SUBSCRIBER_OR_CONTEXT, NO_SUBSCRIBER)) {
                     // It's set, we don't have a subscriber
                     state = NO_SUBSCRIBER;
                     break;
                 }
                 // We now have a subscriber, let it fall through to the NO_CONTEXT behaviour
             case NO_CONTEXT:
-                subscriberState.set(DONE);
+                subscriberContextState.set(DONE);
                 this.ctx = ctx;
                 state = IDLE;
                 subscriber.onSubscribe(new ChannelSubscription());
