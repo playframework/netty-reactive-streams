@@ -79,6 +79,12 @@ public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhitebo
     }
 
     @Override
+    public void required_spec308_requestMustRegisterGivenNumberElementsToBeProduced() throws Throwable {
+        workAroundIssue277 = true;
+        super.required_spec308_requestMustRegisterGivenNumberElementsToBeProduced();
+    }
+
+    @Override
     public Long createElement(int element) {
         return (long) element;
     }
