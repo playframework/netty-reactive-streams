@@ -10,8 +10,11 @@ import org.reactivestreams.tck.SubscriberWhiteboxVerification;
 import org.reactivestreams.tck.TestEnvironment;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhiteboxVerification<Long> {
+
+    private boolean workAroundIssue277;
 
     public HandlerSubscriberWhiteboxVerificationTest() {
         super(new TestEnvironment());
@@ -24,6 +27,7 @@ public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhitebo
     // doesn't happen if you create 32 publishers in a single test.
     @BeforeMethod
     public void startEventLoop() {
+        workAroundIssue277 = false;
         eventLoop = new LocalEventLoopGroup();
     }
 
@@ -46,7 +50,7 @@ public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhitebo
                 return metadata;
             }
         };
-        eventLoop.register(channel).addListener(new ChannelFutureListener() {
+        ChannelFuture future = eventLoop.register(channel).addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 channel.pipeline().addLast("probe", probeHandler);
@@ -54,7 +58,24 @@ public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhitebo
             }
         });
 
+        if (workAroundIssue277) {
+            try {
+                // Wait for the pipeline to be setup, so we're ready to receive elements even if they aren't requested,
+                // because https://github.com/reactive-streams/reactive-streams-jvm/issues/277
+                future.await();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         return probeHandler.wrap(subscriber);
+    }
+
+    @Override
+    public void required_spec208_mustBePreparedToReceiveOnNextSignalsAfterHavingCalledSubscriptionCancel() throws Throwable {
+        // See https://github.com/reactive-streams/reactive-streams-jvm/issues/277
+        workAroundIssue277 = true;
+        super.required_spec208_mustBePreparedToReceiveOnNextSignalsAfterHavingCalledSubscriptionCancel();
     }
 
     @Override

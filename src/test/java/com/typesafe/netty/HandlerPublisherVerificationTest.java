@@ -140,4 +140,16 @@ public class HandlerPublisherVerificationTest extends PublisherVerification<Long
 
         return publisher;
     }
+
+    @Override
+    public void stochastic_spec103_mustSignalOnMethodsSequentially() throws Throwable {
+        try {
+            super.stochastic_spec103_mustSignalOnMethodsSequentially();
+        } catch (Throwable t) {
+            // CI is failing here, but maven doesn't tell us which parameters failed
+            System.out.println("Stochastic test failed with parameters batchSize=" + batchSize +
+                    " publishInitial=" + publishInitial + " scheduled=" + scheduled);
+            throw t;
+        }
+    }
 }

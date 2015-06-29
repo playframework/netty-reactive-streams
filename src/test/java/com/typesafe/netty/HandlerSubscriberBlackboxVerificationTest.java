@@ -6,9 +6,6 @@ import org.reactivestreams.Subscription;
 import org.reactivestreams.tck.SubscriberBlackboxVerification;
 import org.reactivestreams.tck.TestEnvironment;
 
-/**
- * Created by jroper on 29/06/15.
- */
 public class HandlerSubscriberBlackboxVerificationTest extends SubscriberBlackboxVerification<Long> {
 
     public HandlerSubscriberBlackboxVerificationTest() {
