@@ -74,6 +74,12 @@
                 <version>6.9.4</version>
                 <scope>test</scope>
             </dependency>
+            <dependency>
+                <groupId>com.typesafe.akka</groupId>
+                <artifactId>akka-stream-experimental_2.11</artifactId>
+                <version>1.0-RC4</version>
+                <scope>test</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

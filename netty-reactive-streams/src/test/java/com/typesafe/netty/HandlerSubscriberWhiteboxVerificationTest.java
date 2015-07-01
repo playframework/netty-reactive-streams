@@ -1,16 +1,12 @@
 package com.typesafe.netty;
 
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelMetadata;
-import io.netty.channel.local.LocalChannel;
+import io.netty.channel.*;
 import io.netty.channel.local.LocalEventLoopGroup;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.tck.SubscriberWhiteboxVerification;
 import org.reactivestreams.tck.TestEnvironment;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhiteboxVerification<Long> {
 
@@ -43,18 +39,15 @@ public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhitebo
         final HandlerSubscriber<Long> subscriber = new HandlerSubscriber<>(2, 4);
         final ProbeHandler<Long> probeHandler = new ProbeHandler<>(probe, Long.class);
 
-        final LocalChannel channel = new LocalChannel() {
-            private final ChannelMetadata metadata = new ChannelMetadata(true);
-            @Override
-            public ChannelMetadata metadata() {
-                return metadata;
-            }
-        };
+        final ClosedChannel channel = new ClosedChannel();
+        channel.config().setAutoRead(false);
         ChannelFuture future = eventLoop.register(channel).addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 channel.pipeline().addLast("probe", probeHandler);
                 channel.pipeline().addLast("subscriber", subscriber);
+                // Channel needs to be active before the subscriber starts responding to demand
+                channel.pipeline().fireChannelActive();
             }
         });
 

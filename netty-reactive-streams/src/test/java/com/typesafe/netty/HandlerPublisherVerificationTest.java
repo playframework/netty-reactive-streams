@@ -111,7 +111,8 @@ public class HandlerPublisherVerificationTest extends PublisherVerification<Long
                 .batchSize(batchSize)
                 .eofOn(elements);
 
-        final LocalChannel channel = new LocalChannel();
+        final ClosedChannel channel = new ClosedChannel();
+        channel.config().setAutoRead(false);
         eventLoop.register(channel).addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {

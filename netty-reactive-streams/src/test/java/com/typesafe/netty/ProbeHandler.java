@@ -44,7 +44,7 @@ public class ProbeHandler<T> extends ChannelDuplexHandler implements SubscriberW
     }
 
     @Override
-    public void disconnect(ChannelHandlerContext ctx, ChannelPromise future) throws Exception {
+    public void close(ChannelHandlerContext ctx, ChannelPromise future) throws Exception {
         if (receivedError == null) {
             probe.registerOnComplete();
         } else {

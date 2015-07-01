@@ -197,6 +197,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+
         switch(subscriberContextState.get()) {
             case NO_SUBSCRIBER_OR_CONTEXT:
                 this.ctx = ctx;
@@ -217,6 +218,15 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
         }
     }
 
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        // If we subscribed before the channel was active, then our read would have been ignored.
+        if (state == DEMANDING) {
+            ctx.read();
+        }
+        ctx.fireChannelActive();
+    }
+
     private void receivedDemand(long demand) {
         switch (state) {
             case BUFFERING:
@@ -233,13 +243,17 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
             case IDLE:
                 if (addDemand(demand)) {
                     ctx.read();
+
                     state = DEMANDING;
                 }
                 break;
+            default:
+
         }
     }
 
     private boolean addDemand(long demand) {
+
         if (demand <= 0) {
             illegalDemand();
             return false;
@@ -293,6 +307,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object message) throws Exception {
+
         if (acceptInboundMessage(message)) {
             switch (state) {
                 case IDLE:
@@ -320,6 +335,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
     }
 
     private void publishMessage(Object message) {
+
         if (COMPLETE.equals(message)) {
             subscriber.onComplete();
             state = DONE;
@@ -342,6 +358,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
 
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+
         if (state == DEMANDING) {
             ctx.read();
         }
@@ -349,6 +366,16 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        complete();
+    }
+
+    @Override
+    public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+        complete();
+    }
+
+    private void complete() {
+
         switch (state) {
             case NO_SUBSCRIBER:
             case NO_SUBSCRIBER_ERROR:
@@ -417,5 +444,10 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
     /**
      * Used for buffering a completion signal.
      */
-    private static final Object COMPLETE = new Object();
+    private static final Object COMPLETE = new Object() {
+        @Override
+        public String toString() {
+            return "COMPLETE";
+        }
+    };
 }

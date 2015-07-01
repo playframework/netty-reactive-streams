@@ -17,58 +17,111 @@ import static com.typesafe.netty.HandlerSubscriber.State.*;
  */
 public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscriber<T> {
 
+    public static final long DEFAULT_LOW_WATERMARK = 4;
+    public static final long DEFAULT_HIGH_WATERMARK = 16;
+
+    /**
+     * Create a new handler subscriber.
+     *
+     * @param demandLowWatermark The low watermark for demand. When demand drops below this, more will be requested.
+     * @param demandHighWatermark The high watermark for demand. This is the maximum that will be requested.
+     */
     public HandlerSubscriber(long demandLowWatermark, long demandHighWatermark) {
         this.demandLowWatermark = demandLowWatermark;
         this.demandHighWatermark = demandHighWatermark;
     }
 
+    public HandlerSubscriber() {
+        this(DEFAULT_LOW_WATERMARK, DEFAULT_HIGH_WATERMARK);
+    }
+
+    /**
+     * Override for custom error handling. By default, it closes the channel.
+     */
+    protected void error(Throwable error) {
+        doClose();
+    }
+
+    /**
+     * Override for custom completion handling. By default, it closes the channel.
+     */
+    protected void complete() {
+        doClose();
+    }
+
     private final long demandLowWatermark;
     private final long demandHighWatermark;
 
-    enum State {
+    /**
+     * This state is used for when a context or subscription haven't been provided yet, and is only accessed
+     * atomically.
+     */
+    enum AtomicState {
         NO_SUBSCRIPTION_OR_CONTEXT,
         NO_SUBSCRIPTION,
         NO_CONTEXT,
+        DONE
+    }
+
+    /**
+     * These are the main states of the subscriber, used after a context has been provided, and only accessed
+     * through that context.
+     */
+    enum State {
+        NO_SUBSCRIPTION,
+        INACTIVE,
         RUNNING,
         CANCELLED,
         COMPLETE
     }
 
     private final AtomicBoolean hasSubscription = new AtomicBoolean();
-    private final AtomicReference<State> subscriptionContextState = new AtomicReference<>(NO_SUBSCRIPTION_OR_CONTEXT);
+    private final AtomicReference<AtomicState> subscriptionContextState = new AtomicReference<>(AtomicState.NO_SUBSCRIPTION_OR_CONTEXT);
 
     private volatile Subscription subscription;
     private volatile ChannelHandlerContext ctx;
 
-    private State state = NO_SUBSCRIPTION_OR_CONTEXT;
+    private State state = NO_SUBSCRIPTION;
     private long outstandingDemand = 0;
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
-
         this.ctx = ctx;
-        if (subscriptionContextState.compareAndSet(NO_SUBSCRIPTION_OR_CONTEXT, NO_SUBSCRIPTION)) {
+
+        if (subscriptionContextState.compareAndSet(AtomicState.NO_SUBSCRIPTION_OR_CONTEXT, AtomicState.NO_SUBSCRIPTION)) {
             // We were in no subscription or context, now we just don't have a subscription.
             state = NO_SUBSCRIPTION;
-        } else if (subscriptionContextState.compareAndSet(NO_CONTEXT, RUNNING)) {
-            // We were in no context, now we're running
-            state = RUNNING;
-            maybeRequestMore();
+        } else if (subscriptionContextState.compareAndSet(AtomicState.NO_CONTEXT, AtomicState.DONE)) {
+            subscriptionContextState.set(AtomicState.DONE);
+
+            // We were in no context, we're now fully initialised
+            maybeStart();
         } else {
-            // We are complete, disconnect
+            // We are complete, close
             state = COMPLETE;
-            ctx.disconnect();
+            ctx.close();
         }
     }
 
     @Override
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
         maybeRequestMore();
+        ctx.fireChannelWritabilityChanged();
+    }
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        if (state == INACTIVE) {
+            state = RUNNING;
+            maybeRequestMore();
+        }
+        ctx.fireChannelActive();
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         cancel();
+        ctx.fireChannelInactive();
     }
 
     @Override
@@ -88,6 +141,7 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
                 state = CANCELLED;
                 break;
             case RUNNING:
+            case INACTIVE:
                 subscription.cancel();
                 state = CANCELLED;
                 break;
@@ -102,10 +156,10 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
             subscription.cancel();
         } else {
             this.subscription = subscription;
-            if (subscriptionContextState.compareAndSet(NO_SUBSCRIPTION_OR_CONTEXT, NO_CONTEXT)) {
+            if (subscriptionContextState.compareAndSet(AtomicState.NO_SUBSCRIPTION_OR_CONTEXT, AtomicState.NO_CONTEXT)) {
                 // We had neither subscription or context, now we just don't have a subscription
             } else {
-                subscriptionContextState.set(RUNNING);
+                subscriptionContextState.set(AtomicState.DONE);
                 ctx.executor().execute(new Runnable() {
                     @Override
                     public void run() {
@@ -119,8 +173,7 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
     private void provideSubscription() {
         switch (state) {
             case NO_SUBSCRIPTION:
-                state = RUNNING;
-                maybeRequestMore();
+                maybeStart();
                 break;
             case CANCELLED:
                 subscription.cancel();
@@ -128,14 +181,23 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
         }
     }
 
+    private void maybeStart() {
+        if (ctx.channel().isActive()) {
+            state = RUNNING;
+            maybeRequestMore();
+        } else {
+            state = INACTIVE;
+        }
+    }
+
     @Override
     public void onNext(T t) {
+
         // Publish straight to the context.
-        // TODO determine if this can ever throw an exception, eg if the channel is closed, or if the handler is removed
-        // from the pipeline
         ctx.writeAndFlush(t).addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
+
                 outstandingDemand--;
                 maybeRequestMore();
             }
@@ -147,7 +209,7 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
         if (error == null) {
             throw new NullPointerException("Null error published");
         }
-        complete();
+        error(error);
     }
 
     @Override
@@ -155,18 +217,20 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
         complete();
     }
 
-    private void complete() {
+    private void doClose() {
         // First try the no context path
-        if (!subscriptionContextState.compareAndSet(NO_CONTEXT, COMPLETE)) {
-            // We must have a context, so disconnect it
-            ctx.disconnect();
+        if (!subscriptionContextState.compareAndSet(AtomicState.NO_CONTEXT, AtomicState.DONE)) {
+            // We must have a context, so close it
+            ctx.close();
         }
     }
 
     private void maybeRequestMore() {
         if (outstandingDemand <= demandLowWatermark && ctx.channel().isWritable()) {
-            subscription.request(demandHighWatermark - outstandingDemand);
+            long toRequest = demandHighWatermark - outstandingDemand;
+
             outstandingDemand = demandHighWatermark;
+            subscription.request(toRequest);
         }
     }
 }
