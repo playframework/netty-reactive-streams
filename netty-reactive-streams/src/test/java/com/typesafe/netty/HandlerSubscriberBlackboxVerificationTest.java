@@ -17,7 +17,7 @@ public class HandlerSubscriberBlackboxVerificationTest extends SubscriberBlackbo
         HandlerSubscriber<Long> subscriber = new HandlerSubscriber<>(2, 4);
         EmbeddedChannel channel = new EmbeddedChannel(subscriber);
 
-        return new SubscriberWithChannel<Long>(channel, subscriber);
+        return new SubscriberWithChannel<>(channel, subscriber);
     }
 
     @Override

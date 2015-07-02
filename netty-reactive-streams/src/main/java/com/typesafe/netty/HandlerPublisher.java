@@ -242,9 +242,10 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
 
             case IDLE:
                 if (addDemand(demand)) {
-                    ctx.read();
-
+                    // Important to change state to demanding before doing a read, in case we get a synchronous
+                    // read back.
                     state = DEMANDING;
+                    ctx.read();
                 }
                 break;
             default:
@@ -307,7 +308,6 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object message) throws Exception {
-
         if (acceptInboundMessage(message)) {
             switch (state) {
                 case IDLE:
@@ -335,7 +335,6 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
     }
 
     private void publishMessage(Object message) {
-
         if (COMPLETE.equals(message)) {
             subscriber.onComplete();
             state = DONE;

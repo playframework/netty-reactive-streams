@@ -103,13 +103,10 @@ public class HandlerPublisherVerificationTest extends PublisherVerification<Long
 
         final BatchedProducer out;
         if (scheduled) {
-            out = new ScheduledBatchedProducer(executor, 5);
+            out = new ScheduledBatchedProducer(elements, batchSize, publishInitial, executor, 5);
         } else {
-            out = new BatchedProducer();
+            out = new BatchedProducer(elements, batchSize, publishInitial);
         }
-        out.sequence(publishInitial)
-                .batchSize(batchSize)
-                .eofOn(elements);
 
         final ClosedChannel channel = new ClosedChannel();
         channel.config().setAutoRead(false);

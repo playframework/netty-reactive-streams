@@ -2,6 +2,8 @@ package com.typesafe.netty;
 
 import io.netty.channel.*;
 import io.netty.channel.local.LocalEventLoopGroup;
+import io.netty.util.concurrent.DefaultPromise;
+import io.netty.util.concurrent.Promise;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.tck.SubscriberWhiteboxVerification;
 import org.reactivestreams.tck.TestEnvironment;
@@ -39,13 +41,16 @@ public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhitebo
         final HandlerSubscriber<Long> subscriber = new HandlerSubscriber<>(2, 4);
         final ProbeHandler<Long> probeHandler = new ProbeHandler<>(probe, Long.class);
 
+        final Promise<Void> handlersInPlace = new DefaultPromise<>(eventLoop.next());
+
         final ClosedChannel channel = new ClosedChannel();
         channel.config().setAutoRead(false);
-        ChannelFuture future = eventLoop.register(channel).addListener(new ChannelFutureListener() {
+        eventLoop.register(channel).addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 channel.pipeline().addLast("probe", probeHandler);
                 channel.pipeline().addLast("subscriber", subscriber);
+                handlersInPlace.setSuccess(null);
                 // Channel needs to be active before the subscriber starts responding to demand
                 channel.pipeline().fireChannelActive();
             }
@@ -55,7 +60,7 @@ public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhitebo
             try {
                 // Wait for the pipeline to be setup, so we're ready to receive elements even if they aren't requested,
                 // because https://github.com/reactive-streams/reactive-streams-jvm/issues/277
-                future.await();
+                handlersInPlace.await();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }

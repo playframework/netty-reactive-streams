@@ -16,24 +16,27 @@ public class ScheduledBatchedProducer extends BatchedProducer {
     private final ScheduledExecutorService executor;
     private final long delay;
 
-    public ScheduledBatchedProducer(ScheduledExecutorService executor, long delay) {
+    public ScheduledBatchedProducer(long eofOn, int batchSize, long sequence, ScheduledExecutorService executor, long delay) {
+        super(eofOn, batchSize, sequence);
         this.executor = executor;
         this.delay = delay;
     }
+
+    protected boolean complete;
 
     @Override
     public void read(final ChannelHandlerContext ctx) throws Exception {
         executor.schedule(new Runnable() {
             @Override
             public void run() {
-                for (int i = 0; i < batchSize && sequence != eofOn; i++) {
-                    ctx.fireChannelRead(sequence);
-                    sequence++;
+                for (int i = 0; i < batchSize && sequence.get() != eofOn; i++) {
+                    ctx.fireChannelRead(sequence.getAndIncrement());
                 }
+                complete = eofOn == sequence.get();
                 executor.schedule(new Runnable() {
                     @Override
                     public void run() {
-                        if (eofOn == sequence) {
+                        if (complete) {
                             ctx.fireChannelInactive();
                         } else {
                             ctx.fireChannelReadComplete();

@@ -4,6 +4,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * A batched producer.
  *
@@ -12,11 +14,18 @@ import io.netty.channel.ChannelPromise;
  */
 public class BatchedProducer extends ChannelOutboundHandlerAdapter {
 
-    protected long eofOn = Long.MAX_VALUE;
-    protected int batchSize = 1;
-    protected long sequence = 0;
+    protected final long eofOn;
+    protected final int batchSize;
+    protected final AtomicLong sequence;
+
+    public BatchedProducer(long eofOn, int batchSize, long sequence) {
+        this.eofOn = eofOn;
+        this.batchSize = batchSize;
+        this.sequence = new AtomicLong(sequence);
+    }
 
     private boolean cancelled = false;
+
 
     @Override
     public void read(final ChannelHandlerContext ctx) throws Exception {
@@ -26,11 +35,10 @@ public class BatchedProducer extends ChannelOutboundHandlerAdapter {
         ctx.pipeline().channel().eventLoop().parent().execute(new Runnable() {
             @Override
             public void run() {
-                for (int i = 0; i < batchSize && sequence != eofOn; i++) {
-                    ctx.fireChannelRead(sequence);
-                    sequence++;
+                for (int i = 0; i < batchSize && sequence.get() != eofOn; i++) {
+                    ctx.fireChannelRead(sequence.getAndIncrement());
                 }
-                if (eofOn == sequence) {
+                if (eofOn == sequence.get()) {
                     ctx.fireChannelInactive();
                 } else {
                     ctx.fireChannelReadComplete();
@@ -45,20 +53,5 @@ public class BatchedProducer extends ChannelOutboundHandlerAdapter {
             throw new IllegalStateException("Cancelled twice");
         }
         cancelled = true;
-    }
-
-    public BatchedProducer batchSize(int batchSize) {
-        this.batchSize = batchSize;
-        return this;
-    }
-
-    public BatchedProducer eofOn(long eofOn) {
-        this.eofOn = eofOn;
-        return this;
-    }
-
-    public BatchedProducer sequence(long sequence) {
-        this.sequence = sequence;
-        return this;
     }
 }

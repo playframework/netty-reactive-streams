@@ -15,7 +15,6 @@ import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.*;
 import io.netty.util.ReferenceCountUtil;
-import io.netty.util.ResourceLeakDetector;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.tck.IdentityProcessorVerification;
