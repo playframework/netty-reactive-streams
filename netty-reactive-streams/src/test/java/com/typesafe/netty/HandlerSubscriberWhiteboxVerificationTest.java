@@ -43,7 +43,7 @@ public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhitebo
 
         final Promise<Void> handlersInPlace = new DefaultPromise<>(eventLoop.next());
 
-        final ClosedChannel channel = new ClosedChannel();
+        final ClosedLoopChannel channel = new ClosedLoopChannel();
         channel.config().setAutoRead(false);
         eventLoop.register(channel).addListener(new ChannelFutureListener() {
             @Override

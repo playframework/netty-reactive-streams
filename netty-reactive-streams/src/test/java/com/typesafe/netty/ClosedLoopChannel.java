@@ -5,11 +5,12 @@ import io.netty.channel.*;
 import java.net.SocketAddress;
 
 /**
- * A "closed" channel that sends no events and receives no events, for testing purposes.
+ * A closed loop channel that sends no events and receives no events, for testing purposes.
  *
- * The first handler should ensure no events are sent outbound.
+ * Any outgoing events that reach the channel will throw an exception. All events shoud be caught
+ * be inserting a handler that catches them and responds accordingly.
  */
-public class ClosedChannel extends AbstractChannel {
+public class ClosedLoopChannel extends AbstractChannel {
 
     private final ChannelConfig config = new DefaultChannelConfig(this);
     private static final ChannelMetadata metadata = new ChannelMetadata(false);
@@ -17,7 +18,7 @@ public class ClosedChannel extends AbstractChannel {
     private volatile boolean open = true;
     private volatile boolean active = true;
 
-    public ClosedChannel() {
+    public ClosedLoopChannel() {
         super(null);
     }
 

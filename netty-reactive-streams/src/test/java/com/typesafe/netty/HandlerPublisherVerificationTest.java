@@ -108,7 +108,7 @@ public class HandlerPublisherVerificationTest extends PublisherVerification<Long
             out = new BatchedProducer(elements, batchSize, publishInitial);
         }
 
-        final ClosedChannel channel = new ClosedChannel();
+        final ClosedLoopChannel channel = new ClosedLoopChannel();
         channel.config().setAutoRead(false);
         eventLoop.register(channel).addListener(new ChannelFutureListener() {
             @Override
