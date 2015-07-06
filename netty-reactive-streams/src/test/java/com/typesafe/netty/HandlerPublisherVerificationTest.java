@@ -99,8 +99,6 @@ public class HandlerPublisherVerificationTest extends PublisherVerification<Long
 
     @Override
     public Publisher<Long> createPublisher(final long elements) {
-        final HandlerPublisher<Long> publisher = new HandlerPublisher<>(Long.class);
-
         final BatchedProducer out;
         if (scheduled) {
             out = new ScheduledBatchedProducer(elements, batchSize, publishInitial, executor, 5);
@@ -110,7 +108,11 @@ public class HandlerPublisherVerificationTest extends PublisherVerification<Long
 
         final ClosedLoopChannel channel = new ClosedLoopChannel();
         channel.config().setAutoRead(false);
-        eventLoop.register(channel).addListener(new ChannelFutureListener() {
+        ChannelFuture registered = eventLoop.register(channel);
+
+        final HandlerPublisher<Long> publisher = new HandlerPublisher<>(registered.channel().eventLoop(), Long.class);
+
+        registered.addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 channel.pipeline().addLast("out", out);
@@ -130,9 +132,9 @@ public class HandlerPublisherVerificationTest extends PublisherVerification<Long
 
     @Override
     public Publisher<Long> createFailedPublisher() {
-        HandlerPublisher<Long> publisher = new HandlerPublisher<>(Long.class);
         LocalChannel channel = new LocalChannel();
         eventLoop.register(channel);
+        HandlerPublisher<Long> publisher = new HandlerPublisher<>(channel.eventLoop(), Long.class);
         channel.pipeline().addLast("publisher", publisher);
         channel.pipeline().fireExceptionCaught(new RuntimeException("failed"));
 

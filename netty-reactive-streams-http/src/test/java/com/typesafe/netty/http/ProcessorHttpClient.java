@@ -7,10 +7,7 @@ import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.*;
-import io.netty.util.concurrent.DefaultPromise;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
-import io.netty.util.concurrent.Promise;
+import io.netty.util.concurrent.*;
 import org.reactivestreams.Processor;
 
 import java.net.SocketAddress;
@@ -25,9 +22,12 @@ public class ProcessorHttpClient {
 
     public Processor<HttpRequest, HttpResponse> connect(SocketAddress address) {
 
-        final Promise<ChannelPipeline> promise = new DefaultPromise<>(eventLoop.next());
-        final HandlerPublisher<HttpResponse> publisherHandler = new HandlerPublisher<>(HttpResponse.class);
-        final HandlerSubscriber<HttpRequest> subscriberHandler = new HandlerSubscriber<HttpRequest>(2, 4) {
+        final EventExecutor executor = eventLoop.next();
+        final Promise<ChannelPipeline> promise = new DefaultPromise<>(executor);
+        final HandlerPublisher<HttpResponse> publisherHandler = new HandlerPublisher<>(executor,
+                HttpResponse.class);
+        final HandlerSubscriber<HttpRequest> subscriberHandler = new HandlerSubscriber<HttpRequest>(
+                executor, 2, 4) {
             @Override
             protected void error(final Throwable error) {
 
@@ -52,18 +52,18 @@ public class ProcessorHttpClient {
 
                         final ChannelPipeline pipeline = ch.pipeline();
 
+
                         pipeline
                                 .addLast(new HttpClientCodec())
                                 .addLast("clientStreamsHandler", new HttpStreamsClientHandler())
-                                .addLast("clientPublisher", publisherHandler)
-                                .addLast("clientSubscriber", subscriberHandler);
+                                .addLast(executor, "clientPublisher", publisherHandler)
+                                .addLast(executor, "clientSubscriber", subscriberHandler);
 
                         promise.setSuccess(pipeline);
                     }
                 });
 
         client.remoteAddress(address).connect();
-
         return new DelegateProcessor<>(subscriberHandler, publisherHandler);
     }
 }

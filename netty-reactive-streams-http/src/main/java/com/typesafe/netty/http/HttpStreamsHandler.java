@@ -61,7 +61,7 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
             } else {
 
                 // It has a body, stream it
-                HandlerPublisher<HttpContent> publisher = new HandlerPublisher<>(HttpContent.class);
+                HandlerPublisher<HttpContent> publisher = new HandlerPublisher<>(ctx.executor(), HttpContent.class);
                 ctx.channel().pipeline().addAfter(ctx.name(), ctx.name() + "-body-publisher", publisher);
 
                 ctx.fireChannelRead(createStreamedMessage(inMsg, publisher));
@@ -150,7 +150,7 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
 
             StreamedHttpMessage streamed = (StreamedHttpMessage) out.message;
 
-            HandlerSubscriber<HttpContent> subscriber = new HandlerSubscriber<HttpContent>() {
+            HandlerSubscriber<HttpContent> subscriber = new HandlerSubscriber<HttpContent>(ctx.executor()) {
                 @Override
                 protected void error(Throwable error) {
                     out.promise.tryFailure(error);

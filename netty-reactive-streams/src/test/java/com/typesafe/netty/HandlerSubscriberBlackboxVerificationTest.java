@@ -1,5 +1,7 @@
 package com.typesafe.netty;
 
+import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -14,8 +16,12 @@ public class HandlerSubscriberBlackboxVerificationTest extends SubscriberBlackbo
 
     @Override
     public Subscriber<Long> createSubscriber() {
-        HandlerSubscriber<Long> subscriber = new HandlerSubscriber<>(2, 4);
-        EmbeddedChannel channel = new EmbeddedChannel(subscriber);
+        // Embedded channel requires at least one handler when it's created, but HandlerSubscriber
+        // needs the channels event loop in order to be created, so start with a dummy, then replace.
+        ChannelHandler dummy = new ChannelDuplexHandler();
+        EmbeddedChannel channel = new EmbeddedChannel(dummy);
+        HandlerSubscriber<Long> subscriber = new HandlerSubscriber<>(channel.eventLoop(), 2, 4);
+        channel.pipeline().replace(dummy, "subscriber", subscriber);
 
         return new SubscriberWithChannel<>(channel, subscriber);
     }

@@ -5,6 +5,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.internal.TypeParameterMatcher;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -13,7 +14,6 @@ import static com.typesafe.netty.HandlerPublisher.State.*;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Publisher for a Netty Handler.
@@ -40,14 +40,20 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publisher<T> {
 
+    private final EventExecutor executor;
     private final TypeParameterMatcher matcher;
 
     /**
      * Create a handler publisher.
      *
+     * The supplied executor must be the same event loop as the event loop that this handler is eventually registered
+     * with, if not, an exception will be thrown when the handler is registered.
+     *
+     * @param executor The executor to execute asynchronous events from the subscriber on.
      * @param subscriberMessageType The type of message this publisher accepts.
      */
-    public HandlerPublisher(Class<? extends T> subscriberMessageType) {
+    public HandlerPublisher(EventExecutor executor, Class<? extends T> subscriberMessageType) {
+        this.executor = executor;
         this.matcher = TypeParameterMatcher.get(subscriberMessageType);
     }
 
@@ -114,18 +120,10 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
      */
     private final AtomicBoolean hasSubscriber = new AtomicBoolean();
 
-    /**
-     * This is used before a context is provided - once a context is provided, it's not needed, since every event is
-     * submitted to the contexts executor to be run on the handlers thread.
-     *
-     * It only has five possible states, NO_SUBSCRIBER_OR_CONTEXT, NO_SUBSCRIBER, NO_SUBSCRIBER_ERROR, NO_CONTEXT,
-     * or DONE.
-     */
-    private final AtomicReference<State> subscriberContextState = new AtomicReference<>(State.NO_SUBSCRIBER_OR_CONTEXT);
     private State state = NO_SUBSCRIBER_OR_CONTEXT;
 
-    private volatile ChannelHandlerContext ctx;
     private volatile Subscriber<? super T> subscriber;
+    private ChannelHandlerContext ctx;
     private long outstandingDemand = 0;
     private Throwable noSubscriberError;
 
@@ -147,34 +145,21 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
             });
             subscriber.onError(new IllegalStateException("This publisher only supports one subscriber"));
         } else {
-            switch(subscriberContextState.get()) {
-                case NO_SUBSCRIBER_OR_CONTEXT:
-                    this.subscriber = subscriber;
-                    if (subscriberContextState.compareAndSet(NO_SUBSCRIBER_OR_CONTEXT, NO_CONTEXT)) {
-                        // It's set
-                        break;
-                    }
-                    // Otherwise, a context was supplied since initially checking the state, so let it fall through to
-                    // the no subscriber behaviour, which is done on the context executor.
-                case NO_SUBSCRIBER:
-                case NO_SUBSCRIBER_ERROR:
-                    ctx.executor().execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            provideSubscriber(subscriber);
-                        }
-                    });
-                    break;
-            }
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    provideSubscriber(subscriber);
+                }
+            });
         }
     }
 
     private void provideSubscriber(Subscriber<? super T> subscriber) {
-        // Subscriber is provided, so set subscriber state to done
-        subscriberContextState.set(DONE);
-
         this.subscriber = subscriber;
         switch (state) {
+            case NO_SUBSCRIBER_OR_CONTEXT:
+                state = NO_CONTEXT;
+                break;
             case NO_SUBSCRIBER:
                 if (buffer.isEmpty()) {
                     state = IDLE;
@@ -197,24 +182,33 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        verifyRegisteredWithRightExecutor(ctx);
 
-        switch(subscriberContextState.get()) {
+        switch(state) {
             case NO_SUBSCRIBER_OR_CONTEXT:
                 this.ctx = ctx;
-                if (subscriberContextState.compareAndSet(NO_SUBSCRIBER_OR_CONTEXT, NO_SUBSCRIBER)) {
-                    // It's set, we don't have a subscriber
-                    state = NO_SUBSCRIBER;
-                    break;
-                }
-                // We now have a subscriber, let it fall through to the NO_CONTEXT behaviour
+                // It's set, we don't have a subscriber
+                state = NO_SUBSCRIBER;
+                break;
             case NO_CONTEXT:
-                subscriberContextState.set(DONE);
                 this.ctx = ctx;
                 state = IDLE;
                 subscriber.onSubscribe(new ChannelSubscription());
                 break;
             default:
                 throw new IllegalStateException("This handler has already been placed in a handler pipeline");
+        }
+    }
+
+    @Override
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+        verifyRegisteredWithRightExecutor(ctx);
+        ctx.fireChannelRegistered();
+    }
+
+    private void verifyRegisteredWithRightExecutor(ChannelHandlerContext ctx) {
+        if (ctx.channel().isRegistered() && !executor.inEventLoop()) {
+            throw new IllegalArgumentException("Channel handler MUST be registered with the same EventExecutor that it is created with.");
         }
     }
 
@@ -421,7 +415,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
     private class ChannelSubscription implements Subscription {
         @Override
         public void request(final long demand) {
-            ctx.executor().execute(new Runnable() {
+            executor.execute(new Runnable() {
                 @Override
                 public void run() {
                     receivedDemand(demand);
@@ -431,7 +425,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
 
         @Override
         public void cancel() {
-            ctx.executor().execute(new Runnable() {
+            executor.execute(new Runnable() {
                 @Override
                 public void run() {
                     receivedCancel();

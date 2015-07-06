@@ -116,7 +116,12 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
 
         ProcessorHttpClient client = new ProcessorHttpClient(eventLoop);
 
-        Processor<HttpRequest, HttpResponse> connection = client.connect(serverBindChannel.localAddress());
+        Processor<HttpRequest, HttpResponse> connection = null;
+        try {
+            connection = client.connect(serverBindChannel.localAddress());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         Flow<String, String, ?> flow = Flow.<String>create()
                 // Convert the Strings to HttpRequests

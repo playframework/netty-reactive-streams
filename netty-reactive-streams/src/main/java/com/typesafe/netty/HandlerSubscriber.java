@@ -4,11 +4,11 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.concurrent.EventExecutor;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static com.typesafe.netty.HandlerSubscriber.State.*;
 
@@ -17,22 +17,36 @@ import static com.typesafe.netty.HandlerSubscriber.State.*;
  */
 public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscriber<T> {
 
-    public static final long DEFAULT_LOW_WATERMARK = 4;
-    public static final long DEFAULT_HIGH_WATERMARK = 16;
+    static final long DEFAULT_LOW_WATERMARK = 4;
+    static final long DEFAULT_HIGH_WATERMARK = 16;
 
     /**
      * Create a new handler subscriber.
      *
-     * @param demandLowWatermark The low watermark for demand. When demand drops below this, more will be requested.
+     * The supplied executor must be the same event loop as the event loop that this handler is eventually registered
+     * with, if not, an exception will be thrown when the handler is registered.
+     *
+     * @param executor The executor to execute asynchronous events from the publisher on.
+     * @param demandLowWatermark  The low watermark for demand. When demand drops below this, more will be requested.
      * @param demandHighWatermark The high watermark for demand. This is the maximum that will be requested.
      */
-    public HandlerSubscriber(long demandLowWatermark, long demandHighWatermark) {
+    public HandlerSubscriber(EventExecutor executor, long demandLowWatermark, long demandHighWatermark) {
+        this.executor = executor;
         this.demandLowWatermark = demandLowWatermark;
         this.demandHighWatermark = demandHighWatermark;
     }
 
-    public HandlerSubscriber() {
-        this(DEFAULT_LOW_WATERMARK, DEFAULT_HIGH_WATERMARK);
+    /**
+     * Create a new handler subscriber with the default low and high watermarks.
+     *
+     * The supplied executor must be the same event loop as the event loop that this handler is eventually registered
+     * with, if not, an exception will be thrown when the handler is registered.
+     *
+     * @param executor The executor to execute asynchronous events from the publisher on.
+     * @see this#HandlerSubscriber(EventExecutor, long, long)
+     */
+    public HandlerSubscriber(EventExecutor executor) {
+        this(executor, DEFAULT_LOW_WATERMARK, DEFAULT_HIGH_WATERMARK);
     }
 
     /**
@@ -49,26 +63,14 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
         doClose();
     }
 
+    private final EventExecutor executor;
     private final long demandLowWatermark;
     private final long demandHighWatermark;
 
-    /**
-     * This state is used for when a context or subscription haven't been provided yet, and is only accessed
-     * atomically.
-     */
-    enum AtomicState {
+    enum State {
         NO_SUBSCRIPTION_OR_CONTEXT,
         NO_SUBSCRIPTION,
         NO_CONTEXT,
-        DONE
-    }
-
-    /**
-     * These are the main states of the subscriber, used after a context has been provided, and only accessed
-     * through that context.
-     */
-    enum State {
-        NO_SUBSCRIPTION,
         INACTIVE,
         RUNNING,
         CANCELLED,
@@ -76,30 +78,47 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
     }
 
     private final AtomicBoolean hasSubscription = new AtomicBoolean();
-    private final AtomicReference<AtomicState> subscriptionContextState = new AtomicReference<>(AtomicState.NO_SUBSCRIPTION_OR_CONTEXT);
 
     private volatile Subscription subscription;
     private volatile ChannelHandlerContext ctx;
 
-    private State state = NO_SUBSCRIPTION;
+    private State state = NO_SUBSCRIPTION_OR_CONTEXT;
     private long outstandingDemand = 0;
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
-        this.ctx = ctx;
+        verifyRegisteredWithRightExecutor(ctx);
 
-        if (subscriptionContextState.compareAndSet(AtomicState.NO_SUBSCRIPTION_OR_CONTEXT, AtomicState.NO_SUBSCRIPTION)) {
-            // We were in no subscription or context, now we just don't have a subscription.
-            state = NO_SUBSCRIPTION;
-        } else if (subscriptionContextState.compareAndSet(AtomicState.NO_CONTEXT, AtomicState.DONE)) {
-            subscriptionContextState.set(AtomicState.DONE);
+        switch (state) {
+            case NO_SUBSCRIPTION_OR_CONTEXT:
+                this.ctx = ctx;
+                // We were in no subscription or context, now we just don't have a subscription.
+                state = NO_SUBSCRIPTION;
+                break;
+            case NO_CONTEXT:
+                this.ctx = ctx;
+                // We were in no context, we're now fully initialised
+                maybeStart();
+                break;
+            case COMPLETE:
+                // We are complete, close
+                state = COMPLETE;
+                ctx.close();
+                break;
+            default:
+                throw new IllegalStateException("This handler must only be added to a pipeline once " + state);
+        }
+    }
 
-            // We were in no context, we're now fully initialised
-            maybeStart();
-        } else {
-            // We are complete, close
-            state = COMPLETE;
-            ctx.close();
+    @Override
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+        verifyRegisteredWithRightExecutor(ctx);
+        ctx.fireChannelRegistered();
+    }
+
+    private void verifyRegisteredWithRightExecutor(ChannelHandlerContext ctx) {
+        if (ctx.channel().isRegistered() && !executor.inEventLoop()) {
+            throw new IllegalArgumentException("Channel handler MUST be registered with the same EventExecutor that it is created with.");
         }
     }
 
@@ -156,22 +175,20 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
             subscription.cancel();
         } else {
             this.subscription = subscription;
-            if (subscriptionContextState.compareAndSet(AtomicState.NO_SUBSCRIPTION_OR_CONTEXT, AtomicState.NO_CONTEXT)) {
-                // We had neither subscription or context, now we just don't have a subscription
-            } else {
-                subscriptionContextState.set(AtomicState.DONE);
-                ctx.executor().execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        provideSubscription();
-                    }
-                });
-            }
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    provideSubscription();
+                }
+            });
         }
     }
 
     private void provideSubscription() {
         switch (state) {
+            case NO_SUBSCRIPTION_OR_CONTEXT:
+                state = NO_CONTEXT;
+                break;
             case NO_SUBSCRIPTION:
                 maybeStart();
                 break;
@@ -218,11 +235,19 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
     }
 
     private void doClose() {
-        // First try the no context path
-        if (!subscriptionContextState.compareAndSet(AtomicState.NO_CONTEXT, AtomicState.DONE)) {
-            // We must have a context, so close it
-            ctx.close();
-        }
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                switch (state) {
+                    case NO_SUBSCRIPTION:
+                    case INACTIVE:
+                    case RUNNING:
+                        ctx.close();
+                        state = COMPLETE;
+                        break;
+                }
+            }
+        });
     }
 
     private void maybeRequestMore() {

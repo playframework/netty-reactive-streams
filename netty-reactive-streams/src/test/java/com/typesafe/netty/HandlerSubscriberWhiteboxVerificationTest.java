@@ -38,14 +38,16 @@ public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhitebo
     @Override
     public Subscriber<Long> createSubscriber(WhiteboxSubscriberProbe<Long> probe) {
 
-        final HandlerSubscriber<Long> subscriber = new HandlerSubscriber<>(2, 4);
-        final ProbeHandler<Long> probeHandler = new ProbeHandler<>(probe, Long.class);
-
-        final Promise<Void> handlersInPlace = new DefaultPromise<>(eventLoop.next());
 
         final ClosedLoopChannel channel = new ClosedLoopChannel();
         channel.config().setAutoRead(false);
-        eventLoop.register(channel).addListener(new ChannelFutureListener() {
+        ChannelFuture registered = eventLoop.register(channel);
+
+        final HandlerSubscriber<Long> subscriber = new HandlerSubscriber<>(registered.channel().eventLoop(), 2, 4);
+        final ProbeHandler<Long> probeHandler = new ProbeHandler<>(probe, Long.class);
+        final Promise<Void> handlersInPlace = new DefaultPromise<>(eventLoop.next());
+
+        registered.addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 channel.pipeline().addLast("probe", probeHandler);

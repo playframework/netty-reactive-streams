@@ -3,7 +3,6 @@ package com.typesafe.netty.http;
 import com.typesafe.netty.HandlerPublisher;
 import com.typesafe.netty.HandlerSubscriber;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -40,8 +39,8 @@ public class ProcessorHttpServer {
                                 new HttpResponseEncoder()
                         ).addLast("serverStreamsHandler", new HttpStreamsServerHandler());
 
-                        HandlerSubscriber<HttpResponse> subscriber = new HandlerSubscriber<>(2, 4);
-                        HandlerPublisher<HttpRequest> publisher = new HandlerPublisher<>(HttpRequest.class);
+                        HandlerSubscriber<HttpResponse> subscriber = new HandlerSubscriber<>(ch.eventLoop(), 2, 4);
+                        HandlerPublisher<HttpRequest> publisher = new HandlerPublisher<>(ch.eventLoop(), HttpRequest.class);
 
                         pipeline.addLast("serverSubscriber", subscriber);
                         pipeline.addLast("serverPublisher", publisher);
