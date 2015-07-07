@@ -8,6 +8,7 @@ import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.*;
 import io.netty.util.ReferenceCountUtil;
 import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 
 import java.util.LinkedList;
 import java.util.Queue;
@@ -23,32 +24,107 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
         this.outClass = outClass;
     }
 
+    /**
+     * The incoming message that is currently being streamed out to a subscriber.
+     *
+     * This is tracked so that if its subscriber cancels, we can go into a mode where we ignore the rest of the body.
+     * Since subscribers may cancel as many times as they like, including well after they've received all their content,
+     * we need to track what the current message that's being streamed out is so that we can ignore it if it's not
+     * currently being streamed out.
+     */
+    private In currentlyStreamedMessage;
+
+    /**
+     * Ignore the remaining reads for the incoming message.
+     *
+     * This is used in conjunction with currentlyStreamedMessage, as well as in situations where we have received the
+     * full body, but still might be expecting a last http content message.
+     */
     private boolean ignoreBodyRead;
+
+    /**
+     * Whether a LastHttpContent message needs to be written once the incoming publisher completes.
+     *
+     * Since the publisher may itself publish a LastHttpContent message, we need to track this fact, because if it
+     * doesn't, then we need to write one ourselves.
+     */
     private boolean sendLastHttpContent;
 
+    /**
+     * Whether the given incoming message has a body.
+     */
     protected abstract boolean hasBody(In in);
 
+    /**
+     * Create an empty incoming message. This must be of type FullHttpMessage, and is invoked when we've determined
+     * that an incoming message can't have a body, so we send it on as a FullHttpMessage.
+     */
     protected abstract In createEmptyMessage(In in);
 
+    /**
+     * Create a streamed incoming message with the given stream.
+     */
     protected abstract In createStreamedMessage(In in, Publisher<HttpContent> stream);
 
+    /**
+     * Invoked when an incoming message is first received.
+     *
+     * Overridden by sub classes for state tracking.
+     */
     protected void receivedInMessage(ChannelHandlerContext ctx) {}
+
+    /**
+     * Invoked when an incoming message is fully consumed.
+     *
+     * Overridden by sub classes for state tracking.
+     */
     protected void consumedInMessage(ChannelHandlerContext ctx) {}
+
+    /**
+     * Invoked when an outgoing message is first received.
+     *
+     * Overridden by sub classes for state tracking.
+     */
     protected void receivedOutMessage(ChannelHandlerContext ctx) {}
+
+    /**
+     * Invoked when an outgoing message is fully sent.
+     *
+     * Overridden by sub classes for state tracking.
+     */
     protected void sentOutMessage(ChannelHandlerContext ctx) {}
 
+    /**
+     * Subscribe the given subscriber to the given streamed message.
+     *
+     * Provided so that the client subclass can intercept this to hold off sending the body of an expect 100 continue
+     * request.
+     */
+    protected void subscribeSubscriberToStream(StreamedHttpMessage msg, Subscriber<HttpContent> subscriber) {
+        msg.subscribe(subscriber);
+    }
+
+    /**
+     * Invoked every time a read of the incoming body is requested by the subscriber.
+     *
+     * Provided so that the server subclass can intercept this to send a 100 continue response.
+     */
+    protected void bodyRequested(ChannelHandlerContext ctx) {}
+
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+    public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
+
         if (inClass.isInstance(msg)) {
 
             receivedInMessage(ctx);
-            In inMsg = inClass.cast(msg);
+            final In inMsg = inClass.cast(msg);
 
             if (inMsg instanceof FullHttpMessage) {
 
                 // Forward as is
                 ctx.fireChannelRead(inMsg);
                 consumedInMessage(ctx);
+
             } else if (!hasBody(inMsg)) {
 
                 // Wrap in empty message
@@ -60,10 +136,31 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
 
             } else {
 
+                currentlyStreamedMessage = inMsg;
                 // It has a body, stream it
-                HandlerPublisher<HttpContent> publisher = new HandlerPublisher<>(ctx.executor(), HttpContent.class);
-                ctx.channel().pipeline().addAfter(ctx.name(), ctx.name() + "-body-publisher", publisher);
+                HandlerPublisher<HttpContent> publisher = new HandlerPublisher<HttpContent>(ctx.executor(), HttpContent.class) {
+                    @Override
+                    protected void cancelled() {
+                        if (ctx.executor().inEventLoop()) {
+                            handleCancelled(ctx, inMsg);
+                        } else {
+                            ctx.executor().execute(new Runnable() {
+                                @Override
+                                public void run() {
+                                    handleCancelled(ctx, inMsg);
+                                }
+                            });
+                        }
+                    }
 
+                    @Override
+                    protected void requestDemand() {
+                        bodyRequested(ctx);
+                        super.requestDemand();
+                    }
+                };
+
+                ctx.channel().pipeline().addAfter(ctx.name(), ctx.name() + "-body-publisher", publisher);
                 ctx.fireChannelRead(createStreamedMessage(inMsg, publisher));
             }
         } else if (msg instanceof HttpContent) {
@@ -71,6 +168,13 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
         }
     }
 
+    private void handleCancelled(ChannelHandlerContext ctx, In msg) {
+        if (currentlyStreamedMessage == msg) {
+            ignoreBodyRead = true;
+            // Need to do a read in case the subscriber ignored a read completed.
+            ctx.read();
+        }
+    }
 
     private void handleReadHttpContent(ChannelHandlerContext ctx, HttpContent content) {
         if (!ignoreBodyRead) {
@@ -86,7 +190,6 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
 
                 ctx.channel().pipeline().remove(ctx.name() + "-body-publisher");
                 consumedInMessage(ctx);
-                ctx.fireChannelReadComplete();
 
             } else {
                 ctx.fireChannelRead(content);
@@ -96,13 +199,12 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
             ReferenceCountUtil.release(content);
             if (content instanceof LastHttpContent) {
                 ignoreBodyRead = false;
+                if (currentlyStreamedMessage != null) {
+                    ctx.channel().pipeline().remove(ctx.name() + "-body-publisher");
+                }
+                currentlyStreamedMessage = null;
             }
         }
-    }
-
-    @Override
-    public void read(ChannelHandlerContext ctx) throws Exception {
-        super.read(ctx);
     }
 
     @Override
@@ -138,18 +240,18 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
         }
     }
 
-    private void unbufferedWrite(final ChannelHandlerContext ctx, final Outgoing out) {
+    protected void unbufferedWrite(final ChannelHandlerContext ctx, final Outgoing out) {
 
         if (out.message instanceof FullHttpMessage) {
             // Forward as is
             ctx.writeAndFlush(out.message, out.promise);
+            sentOutMessage(ctx);
             outgoing.remove();
             flushNext(ctx);
 
         } else if (out.message instanceof StreamedHttpMessage) {
 
             StreamedHttpMessage streamed = (StreamedHttpMessage) out.message;
-
             HandlerSubscriber<HttpContent> subscriber = new HandlerSubscriber<HttpContent>(ctx.executor()) {
                 @Override
                 protected void error(Throwable error) {
@@ -176,10 +278,10 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
             sendLastHttpContent = true;
 
             // DON'T pass the promise through, create a new promise instead.
-            ctx.write(out.message);
+            ctx.writeAndFlush(out.message);
 
             ctx.pipeline().addAfter(ctx.name(), ctx.name() + "-body-subscriber", subscriber);
-            streamed.subscribe(subscriber);
+            subscribeSubscriberToStream(streamed, subscriber);
         }
 
     }
@@ -194,11 +296,11 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
             promise.setSuccess();
         }
 
+        sentOutMessage(ctx);
         flushNext(ctx);
     }
 
     private void flushNext(ChannelHandlerContext ctx) {
-        sentOutMessage(ctx);
         if (!outgoing.isEmpty()) {
             unbufferedWrite(ctx, outgoing.element());
         } else {
@@ -206,7 +308,7 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
         }
     }
 
-    private class Outgoing {
+    class Outgoing {
         final Out message;
         final ChannelPromise promise;
 

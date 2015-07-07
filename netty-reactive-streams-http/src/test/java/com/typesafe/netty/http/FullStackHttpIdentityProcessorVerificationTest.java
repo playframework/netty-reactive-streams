@@ -1,20 +1,16 @@
 package com.typesafe.netty.http;
 
 import akka.actor.ActorSystem;
-import akka.dispatch.Futures;
 import akka.japi.function.Function;
-import akka.japi.function.Function2;
 import akka.stream.ActorMaterializer;
 import akka.stream.Materializer;
 import akka.stream.javadsl.Flow;
 import akka.stream.javadsl.Keep;
 import akka.stream.javadsl.Sink;
 import akka.stream.javadsl.Source;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.*;
-import io.netty.util.ReferenceCountUtil;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.tck.IdentityProcessorVerification;
@@ -24,7 +20,6 @@ import scala.concurrent.Future;
 import scala.runtime.BoxedUnit;
 
 import java.net.InetSocketAddress;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -48,6 +43,7 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
     private Channel serverBindChannel;
     private ActorSystem actorSystem;
     private Materializer materializer;
+    private HttpHelper helper;
     private ExecutorService executorService;
 
     public FullStackHttpIdentityProcessorVerificationTest() {
@@ -59,6 +55,7 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
         executorService = Executors.newCachedThreadPool();
         actorSystem = ActorSystem.create();
         materializer = ActorMaterializer.create(actorSystem);
+        helper = new HttpHelper(materializer);
     }
 
     @AfterClass
@@ -76,23 +73,7 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
         final Flow<HttpRequest, HttpResponse, BoxedUnit> flow = Flow.<HttpRequest>create().map(
                 new Function<HttpRequest, HttpResponse>() {
                     public HttpResponse apply(HttpRequest request) throws Exception {
-                        HttpResponse response;
-                        if (request instanceof StreamedHttpRequest) {
-                            response = new DefaultStreamedHttpResponse(request.getProtocolVersion(),
-                                    HttpResponseStatus.OK, (StreamedHttpRequest) request);
-                        } else if (request instanceof FullHttpRequest) {
-                            response = new DefaultFullHttpResponse(request.getProtocolVersion(),
-                                    HttpResponseStatus.OK, ((FullHttpRequest) request).content());
-                        } else {
-                            throw new IllegalArgumentException("Unsupported http message type: " + request);
-                        }
-                        if (HttpHeaders.isTransferEncodingChunked(request)) {
-                            HttpHeaders.setTransferEncodingChunked(response);
-                        } else {
-                            HttpHeaders.setContentLength(response, HttpHeaders.getContentLength(request, 0));
-                        }
-                        HttpHeaders.setHeader(response, "Location", request.getUri());
-                        return response;
+                        return helper.echo(request);
                     }
                 }
         );
@@ -128,7 +109,7 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
                 .map(new Function<String, HttpRequest>() {
                     @Override
                     public HttpRequest apply(String body) throws Exception {
-                        List<HttpContent> content = new ArrayList<>();
+                        List<String> content = new ArrayList<>();
                         String[] chunks = body.split(":");
                         for (String chunk: chunks) {
                             // Make sure we put the ":" back into the body
@@ -138,13 +119,9 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
                             } else {
                                 c = ":" + chunk;
                             }
-                            content.add(new DefaultHttpContent(Unpooled.copiedBuffer(c, Charset.forName("utf-8"))));
+                            content.add(c);
                         }
-                        Publisher<HttpContent> publisher = Source.from(content).runWith(Sink.<HttpContent>publisher(), materializer);
-                        HttpRequest request = new DefaultStreamedHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/" + chunks[0],
-                                publisher);
-                        HttpHeaders.setTransferEncodingChunked(request);
-                        return request;
+                        return helper.createChunkedRequest("POST", "/" + chunks[0], content);
                     }
                 })
                 // Send the flow via the HTTP client connection
@@ -153,30 +130,11 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
                 .mapAsync(4, new Function<HttpResponse, Future<String>>() {
                     @Override
                     public Future<String> apply(HttpResponse response) throws Exception {
-                        if (response instanceof FullHttpResponse) {
-                            String body = contentAsString((FullHttpResponse) response);
-                            return Futures.successful(body);
-                        } else if (response instanceof StreamedHttpResponse) {
-
-                            return Source.from((StreamedHttpResponse) response).runFold("", new Function2<String, HttpContent, String>() {
-                                @Override
-                                public String apply(String body, HttpContent content) throws Exception {
-                                    return body + contentAsString(content);
-                                }
-                            }, materializer);
-                        } else {
-                            throw new IllegalArgumentException("Unknown response type: " + response);
-                        }
+                        return helper.extractBodyAsync(response);
                     }
                 });
 
         return AkkaStreamsUtil.flowToProcessor(flow, materializer);
-    }
-
-    private String contentAsString(HttpContent content) {
-        String body = content.content().toString(Charset.forName("utf-8"));
-        ReferenceCountUtil.release(content);
-        return body;
     }
 
     @Override

@@ -29,8 +29,4 @@ public class DefaultStreamedHttpRequest extends DefaultHttpRequest implements St
         stream.subscribe(subscriber);
     }
 
-    @Override
-    public String toString() {
-        return this.getClass().getName() + "(" + getMethod() + " " + getUri() + " " + ")";
-    }
 }

@@ -3,7 +3,10 @@ package com.typesafe.netty.http;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.*;
+import io.netty.util.ReferenceCountUtil;
 import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 
 /**
  * Handler that converts written {@link StreamedHttpRequest} messages into {@link HttpRequest} messages
@@ -26,7 +29,11 @@ import org.reactivestreams.Publisher;
 public class HttpStreamsClientHandler extends HttpStreamsHandler<HttpResponse, HttpRequest> {
 
     private int inFlight = 0;
+    private int withServer = 0;
     private ChannelPromise closeOnZeroInFlight = null;
+    private Subscriber<HttpContent> awaiting100Continue;
+    private StreamedHttpMessage awaiting100ContinueMessage;
+    private boolean ignoreResponseBody = false;
 
     public HttpStreamsClientHandler() {
         super(HttpResponse.class, HttpRequest.class);
@@ -67,6 +74,7 @@ public class HttpStreamsClientHandler extends HttpStreamsHandler<HttpResponse, H
     @Override
     protected void consumedInMessage(ChannelHandlerContext ctx) {
         inFlight--;
+        withServer--;
         if (inFlight == 0 && closeOnZeroInFlight != null) {
             ctx.close(closeOnZeroInFlight);
         }
@@ -75,6 +83,11 @@ public class HttpStreamsClientHandler extends HttpStreamsHandler<HttpResponse, H
     @Override
     protected void receivedOutMessage(ChannelHandlerContext ctx) {
         inFlight++;
+    }
+
+    @Override
+    protected void sentOutMessage(ChannelHandlerContext ctx) {
+        withServer++;
     }
 
     @Override
@@ -87,4 +100,61 @@ public class HttpStreamsClientHandler extends HttpStreamsHandler<HttpResponse, H
         return new DelegateStreamedHttpResponse(response, stream);
     }
 
+    @Override
+    protected void subscribeSubscriberToStream(StreamedHttpMessage msg, Subscriber<HttpContent> subscriber) {
+        if (HttpHeaders.is100ContinueExpected(msg)) {
+            awaiting100Continue = subscriber;
+            awaiting100ContinueMessage = msg;
+        } else {
+            super.subscribeSubscriberToStream(msg, subscriber);
+        }
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+
+        if (msg instanceof HttpResponse && awaiting100Continue != null && withServer == 0) {
+            HttpResponse response = (HttpResponse) msg;
+            if (response.getStatus().equals(HttpResponseStatus.CONTINUE)) {
+                super.subscribeSubscriberToStream(awaiting100ContinueMessage, awaiting100Continue);
+                awaiting100Continue = null;
+                awaiting100ContinueMessage = null;
+                if (msg instanceof FullHttpResponse) {
+                    ReferenceCountUtil.release(msg);
+                } else {
+                    ignoreResponseBody = true;
+                }
+            } else {
+                awaiting100ContinueMessage.subscribe(new Subscriber<HttpContent>() {
+                    public void onSubscribe(Subscription s) {
+                        s.cancel();
+                    }
+                    public void onNext(HttpContent httpContent) {
+                    }
+                    public void onError(Throwable t) {
+                    }
+                    public void onComplete() {
+                    }
+                });
+                awaiting100ContinueMessage = null;
+                awaiting100Continue.onSubscribe(new Subscription() {
+                    public void request(long n) {
+                    }
+                    public void cancel() {
+                    }
+                });
+                awaiting100Continue.onComplete();
+                awaiting100Continue = null;
+                super.channelRead(ctx, msg);
+            }
+        } else if (ignoreResponseBody && msg instanceof HttpContent) {
+
+            ReferenceCountUtil.release(msg);
+            if (msg instanceof LastHttpContent) {
+                ignoreResponseBody = false;
+            }
+        } else {
+            super.channelRead(ctx, msg);
+        }
+    }
 }

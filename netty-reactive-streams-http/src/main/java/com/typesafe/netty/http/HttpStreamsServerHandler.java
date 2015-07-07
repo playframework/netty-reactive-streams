@@ -1,5 +1,7 @@
 package com.typesafe.netty.http;
 
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.*;
 import org.reactivestreams.Publisher;
 
@@ -23,6 +25,11 @@ import org.reactivestreams.Publisher;
  */
 public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, HttpResponse> {
 
+    private int inFlight = 0;
+    private HttpVersion continueExpected = null;
+    private boolean sendContinue = false;
+    private boolean close = false;
+
     public HttpStreamsServerHandler() {
         super(HttpRequest.class, HttpResponse.class);
     }
@@ -42,5 +49,66 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
     @Override
     protected HttpRequest createStreamedMessage(HttpRequest httpRequest, Publisher<HttpContent> stream) {
         return new DelegateStreamedHttpRequest(httpRequest, stream);
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        // Set to false, since if it was true, and the client is sending data, then the
+        // client must no longer be expecting it (due to a timeout, for example).
+        continueExpected = null;
+        sendContinue = false;
+
+        if (msg instanceof HttpRequest) {
+            HttpRequest request = (HttpRequest) msg;
+            if (HttpHeaders.is100ContinueExpected(request)) {
+                continueExpected = request.getProtocolVersion();
+            }
+        }
+        super.channelRead(ctx, msg);
+    }
+
+    @Override
+    protected void receivedInMessage(ChannelHandlerContext ctx) {
+        inFlight++;
+    }
+
+    @Override
+    protected void sentOutMessage(ChannelHandlerContext ctx) {
+        inFlight--;
+        if (inFlight == 1 && continueExpected != null && sendContinue) {
+            ctx.writeAndFlush(new DefaultFullHttpResponse(continueExpected, HttpResponseStatus.CONTINUE));
+            sendContinue = false;
+            continueExpected = null;
+        }
+
+        if (close) {
+            ctx.close();
+        }
+    }
+
+    @Override
+    protected void unbufferedWrite(ChannelHandlerContext ctx, HttpStreamsHandler<HttpRequest, HttpResponse>.Outgoing out) {
+        if (inFlight == 1 && continueExpected != null) {
+            HttpHeaders.setKeepAlive(out.message, false);
+            close = true;
+            continueExpected = null;
+        }
+        if (!HttpHeaders.isContentLengthSet(out.message) && !HttpHeaders.isTransferEncodingChunked(out.message)) {
+            HttpHeaders.setKeepAlive(out.message, false);
+            close = true;
+        }
+        super.unbufferedWrite(ctx, out);
+    }
+
+    @Override
+    protected void bodyRequested(ChannelHandlerContext ctx) {
+        if (continueExpected != null) {
+            if (inFlight == 1) {
+                ctx.writeAndFlush(new DefaultFullHttpResponse(continueExpected, HttpResponseStatus.CONTINUE));
+                continueExpected = null;
+            } else {
+                sendContinue = true;
+            }
+        }
     }
 }

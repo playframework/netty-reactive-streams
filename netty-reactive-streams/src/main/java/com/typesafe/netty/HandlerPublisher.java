@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The publisher will release any messages that it drops (for example, messages that are buffered when the subscriber
  * cancels), but other than that, it does not release any messages.  It is up to the subscriber to release messages.
  *
- * If the subscriber cancels, the publisher will send a disconnect event up the channel pipeline.
+ * If the subscriber cancels, the publisher will send a close event up the channel pipeline.
  *
  * All errors will short circuit the buffer, and cause publisher to immediately call the subscribers onError method,
  * dropping the buffer.
@@ -63,6 +63,24 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
      */
     protected boolean acceptInboundMessage(Object msg) throws Exception {
         return matcher.match(msg);
+    }
+
+    /**
+     * Override to handle when a subscriber cancels the subscription.
+     *
+     * By default, this method will simply close the channel.
+     */
+    protected void cancelled() {
+        ctx.close();
+    }
+
+    /**
+     * Override to intercept when demand is requested.
+     *
+     * By default, a channel read is invoked.
+     */
+    protected void requestDemand() {
+        ctx.read();
     }
 
     enum State {
@@ -216,7 +234,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         // If we subscribed before the channel was active, then our read would have been ignored.
         if (state == DEMANDING) {
-            ctx.read();
+            requestDemand();
         }
         ctx.fireChannelActive();
     }
@@ -239,7 +257,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
                     // Important to change state to demanding before doing a read, in case we get a synchronous
                     // read back.
                     state = DEMANDING;
-                    ctx.read();
+                    requestDemand();
                 }
                 break;
             default:
@@ -266,7 +284,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
     private void illegalDemand() {
         cleanup();
         subscriber.onError(new IllegalArgumentException("Request for 0 or negative elements in violation of Section 3.9 of the Reactive Streams specification"));
-        ctx.disconnect();
+        ctx.close();
         state = DONE;
     }
 
@@ -279,7 +297,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
                 if (state == BUFFERING) {
                     state = DEMANDING;
                 } // otherwise we're draining
-                ctx.read();
+                requestDemand();
             } else if (state == BUFFERING) {
                 state = IDLE;
             }
@@ -291,7 +309,7 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
             case BUFFERING:
             case DEMANDING:
             case IDLE:
-                ctx.disconnect();
+                cancelled();
             case DRAINING:
                 state = DONE;
                 break;
@@ -351,9 +369,8 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
 
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-
         if (state == DEMANDING) {
-            ctx.read();
+            requestDemand();
         }
     }
 
