@@ -189,6 +189,7 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
                 }
 
                 ctx.channel().pipeline().remove(ctx.name() + "-body-publisher");
+                currentlyStreamedMessage = null;
                 consumedInMessage(ctx);
 
             } else {

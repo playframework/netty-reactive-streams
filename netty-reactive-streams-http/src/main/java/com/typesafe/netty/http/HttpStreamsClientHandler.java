@@ -1,5 +1,6 @@
 package com.typesafe.netty.http;
 
+import com.typesafe.netty.CancelledSubscriber;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.*;
@@ -125,17 +126,7 @@ public class HttpStreamsClientHandler extends HttpStreamsHandler<HttpResponse, H
                     ignoreResponseBody = true;
                 }
             } else {
-                awaiting100ContinueMessage.subscribe(new Subscriber<HttpContent>() {
-                    public void onSubscribe(Subscription s) {
-                        s.cancel();
-                    }
-                    public void onNext(HttpContent httpContent) {
-                    }
-                    public void onError(Throwable t) {
-                    }
-                    public void onComplete() {
-                    }
-                });
+                awaiting100ContinueMessage.subscribe(new CancelledSubscriber<HttpContent>());
                 awaiting100ContinueMessage = null;
                 awaiting100Continue.onSubscribe(new Subscription() {
                     public void request(long n) {
