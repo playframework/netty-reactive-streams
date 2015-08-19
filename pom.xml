@@ -4,7 +4,7 @@
 
     <groupId>com.typesafe.netty</groupId>
     <artifactId>netty-reactive-streams-parent</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0-M2</version>
 
     <name>Netty Reactive Streams Parent POM</name>
     <description>Reactive streams implementation for Netty.</description>
@@ -173,7 +173,7 @@
         <connection>scm:git://github.com/typesafehub/netty-reactive-streams.git</connection>
         <developerConnection>scm:git:git@github.com:typesafehub/netty-reactive-streams.git</developerConnection>
         <url>scm:git://github.com/typesafehub/netty-reactive-streams.git</url>
-        <tag>HEAD</tag>
+        <tag>1.0.0-M2</tag>
     </scm>
 
     <distributionManagement>
