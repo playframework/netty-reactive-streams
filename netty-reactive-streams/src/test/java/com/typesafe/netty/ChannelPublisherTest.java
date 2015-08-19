@@ -138,7 +138,7 @@ public class ChannelPublisherTest {
         }
 
         T take() throws Exception {
-            T t = elements.poll(100, TimeUnit.MILLISECONDS);
+            T t = elements.poll(1000, TimeUnit.MILLISECONDS);
             assertNotNull(t);
             return t;
         }
