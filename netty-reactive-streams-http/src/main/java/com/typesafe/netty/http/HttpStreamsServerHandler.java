@@ -36,6 +36,7 @@ import java.util.NoSuchElementException;
 public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, HttpResponse> {
 
     private HttpRequest lastRequest = null;
+    private Outgoing webSocketResponse = null;
     private int inFlight = 0;
     private boolean continueExpected = true;
     private boolean sendContinue = false;
@@ -118,7 +119,13 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
     protected void unbufferedWrite(ChannelHandlerContext ctx, HttpStreamsHandler<HttpRequest, HttpResponse>.Outgoing out) {
 
         if (out.message instanceof WebSocketHttpResponse) {
-            handleWebSocketResponse(ctx, out);
+            if ((lastRequest instanceof FullHttpRequest) || !hasBody(lastRequest)) {
+                handleWebSocketResponse(ctx, out);
+            } else {
+                // If the response has a streamed body, then we can't send the WebSocket response until we've received
+                // the body.
+                webSocketResponse = out;
+            }
         } else {
             String connection = out.message.headers().get(HttpHeaders.Names.CONNECTION);
             if (lastRequest.getProtocolVersion().isKeepAliveDefault()) {
@@ -140,6 +147,14 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
                 close = true;
             }
             super.unbufferedWrite(ctx, out);
+        }
+    }
+
+    @Override
+    protected void consumedInMessage(ChannelHandlerContext ctx) {
+        if (webSocketResponse != null) {
+            handleWebSocketResponse(ctx, webSocketResponse);
+            webSocketResponse = null;
         }
     }
 
@@ -167,7 +182,9 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
             ctx.pipeline().remove(ctx.name());
 
             // Now do the handshake
-            handshaker.handshake(ctx.channel(), lastRequest);
+            // Wrap the request in an empty request because we don't need the WebSocket handshaker ignoring the body,
+            // we already have handled the body.
+            handshaker.handshake(ctx.channel(), new EmptyHttpRequest(lastRequest));
 
             // And hook up the subscriber/publishers
             response.subscribe(subscriber);
