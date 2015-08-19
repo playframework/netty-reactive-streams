@@ -120,6 +120,16 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
         if (out.message instanceof WebSocketHttpResponse) {
             handleWebSocketResponse(ctx, out);
         } else {
+            String connection = out.message.headers().get(HttpHeaders.Names.CONNECTION);
+            if (lastRequest.getProtocolVersion().isKeepAliveDefault()) {
+                if ("close".equalsIgnoreCase(connection)) {
+                    close = true;
+                }
+            } else {
+                if (!"keep-alive".equalsIgnoreCase(connection)) {
+                    close = true;
+                }
+            }
             if (inFlight == 1 && continueExpected) {
                 HttpHeaders.setKeepAlive(out.message, false);
                 close = true;

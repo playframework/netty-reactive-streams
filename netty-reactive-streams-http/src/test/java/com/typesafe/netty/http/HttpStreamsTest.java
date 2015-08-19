@@ -250,6 +250,81 @@ public class HttpStreamsTest {
         assertEquals(helper.extractBody(receiveStreamedResponse()), "request 6");
     }
 
+    @Test
+    public void closeAHttp11ConnectionWhenRequestedByFullResponse() throws Exception {
+        start(new AutoReadHandler() {
+            @Override
+            public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
+                HttpResponse response = helper.createFullResponse("");
+                response.headers().set(HttpHeaders.Names.CONNECTION, "close");
+                ctx.writeAndFlush(response);
+            }
+        });
+        client.writeAndFlush(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/"));
+
+        FullHttpResponse response = receiveFullResponse();
+        assertEquals(helper.extractBody(response), "");
+
+        client.closeFuture().await(100, TimeUnit.MILLISECONDS);
+        assertFalse(client.isOpen());
+    }
+
+    @Test
+    public void closeAHttp11ConnectionWhenRequestedByStreamedResponse() throws Exception {
+        start(new AutoReadHandler() {
+            @Override
+            public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
+                HttpResponse response = helper.createStreamedResponse(HttpVersion.HTTP_1_1, Arrays.asList("hello", " ", "world"), 11);
+                response.headers().set(HttpHeaders.Names.CONNECTION, "close");
+                ctx.writeAndFlush(response);
+            }
+        });
+        client.writeAndFlush(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/"));
+
+        StreamedHttpResponse response = receiveStreamedResponse();
+        assertEquals(helper.extractBody(response), "hello world");
+
+        client.closeFuture().await(100, TimeUnit.MILLISECONDS);
+        assertFalse(client.isOpen());
+    }
+
+    @Test
+    public void closeAHttp10ConnectionWhenRequestedByFullResponse() throws Exception {
+        start(new AutoReadHandler() {
+            @Override
+            public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
+                HttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_0, HttpResponseStatus.OK);
+                HttpHeaders.setContentLength(response, 0);
+                ctx.writeAndFlush(response);
+            }
+        });
+        client.writeAndFlush(new DefaultFullHttpRequest(HttpVersion.HTTP_1_0, HttpMethod.GET, "/"));
+
+        FullHttpResponse response = receiveFullResponse();
+        assertEquals(helper.extractBody(response), "");
+
+        client.closeFuture().await(100, TimeUnit.MILLISECONDS);
+        assertFalse(client.isOpen());
+    }
+
+    @Test
+    public void closeAHttp10ConnectionWhenRequestedByStreamedResponse() throws Exception {
+        start(new AutoReadHandler() {
+            @Override
+            public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
+                HttpResponse response = helper.createStreamedResponse(HttpVersion.HTTP_1_0, Arrays.asList("hello", " ", "world"), 11);
+                ctx.writeAndFlush(response);
+            }
+        });
+        client.writeAndFlush(new DefaultFullHttpRequest(HttpVersion.HTTP_1_0, HttpMethod.GET, "/"));
+
+        StreamedHttpResponse response = receiveStreamedResponse();
+        assertEquals(helper.extractBody(response), "hello world");
+
+        client.closeFuture().await(100, TimeUnit.MILLISECONDS);
+        assertFalse(client.isOpen());
+    }
+
     @BeforeClass
     public void startEventLoop() {
         eventLoop = new NioEventLoopGroup();

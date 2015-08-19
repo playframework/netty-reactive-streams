@@ -101,6 +101,17 @@ public class HttpHelper {
         return response;
     }
 
+    public StreamedHttpResponse createStreamedResponse(HttpVersion version, List<String> body, long contentLength) {
+        List<HttpContent> content = new ArrayList<>();
+        for (String chunk: body) {
+            content.add(new DefaultHttpContent(Unpooled.copiedBuffer(chunk, Charset.forName("utf-8"))));
+        }
+        Publisher<HttpContent> publisher = Source.from(content).runWith(Sink.<HttpContent>publisher(), materializer);
+        StreamedHttpResponse response = new DefaultStreamedHttpResponse(version, HttpResponseStatus.OK, publisher);
+        HttpHeaders.setContentLength(response, contentLength);
+        return response;
+    }
+
     public String extractBody(Object msg) throws Exception {
         return Await.result(extractBodyAsync(msg), Duration.apply(1, TimeUnit.SECONDS));
     }

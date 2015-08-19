@@ -112,7 +112,6 @@ public class WebSocketsTest {
         start(new AutoReadHandler() {
             @Override
             public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                System.out.println("Got request: " + System.currentTimeMillis());
                 if (msg instanceof HttpRequest) {
                     HttpRequest request = (HttpRequest) msg;
                     ReferenceCountUtil.release(msg);
@@ -136,7 +135,6 @@ public class WebSocketsTest {
                 .add(HttpHeaders.Names.SEC_WEBSOCKET_ORIGIN, "http://127.0.0.1:" + port)
                 .add(HttpHeaders.Names.SEC_WEBSOCKET_VERSION, "1");
         client.writeAndFlush(request);
-        System.out.println("Sent request: " + System.currentTimeMillis());
 
         FullHttpResponse response = receiveFullResponse();
         assertEquals(response.getStatus(), HttpResponseStatus.UPGRADE_REQUIRED);
