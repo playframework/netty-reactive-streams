@@ -7,7 +7,7 @@ import org.reactivestreams.Processor;
 
 
 /**
- * Combines {@link HttpResponse} and {@link Processor<WebSocketFrame, WebSocketFrame>}
+ * Combines {@link HttpResponse} and {@link Processor}
  * into one message. So it represents an http response with a processor that can handle
  * a WebSocket.
  *

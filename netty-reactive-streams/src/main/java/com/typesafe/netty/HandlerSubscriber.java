@@ -43,7 +43,7 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
      * with, if not, an exception will be thrown when the handler is registered.
      *
      * @param executor The executor to execute asynchronous events from the publisher on.
-     * @see this#HandlerSubscriber(EventExecutor, long, long)
+     * @see #HandlerSubscriber(EventExecutor, long, long)
      */
     public HandlerSubscriber(EventExecutor executor) {
         this(executor, DEFAULT_LOW_WATERMARK, DEFAULT_HIGH_WATERMARK);
@@ -51,6 +51,8 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
 
     /**
      * Override for custom error handling. By default, it closes the channel.
+     *
+     * @param error The error to handle.
      */
     protected void error(Throwable error) {
         doClose();

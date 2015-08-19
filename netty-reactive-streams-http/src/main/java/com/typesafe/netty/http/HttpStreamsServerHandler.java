@@ -18,18 +18,18 @@ import java.util.NoSuchElementException;
  * Handler that reads {@link HttpRequest} messages followed by {@link HttpContent} messages and produces
  * {@link StreamedHttpRequest} messages, and converts written {@link StreamedHttpResponse} messages into
  * {@link HttpResponse} messages followed by {@link HttpContent} messages.
- * <p/>
+ *
  * This allows request and response bodies to be handled using reactive streams.
- * <p/>
+ *
  * There are two types of messages that this handler will send down the chain, {@link StreamedHttpRequest},
  * and {@link FullHttpRequest}. If {@link io.netty.channel.ChannelOption#AUTO_READ} is false for the channel,
  * then any {@link StreamedHttpRequest} messages <em>must</em> be subscribed to consume the body, otherwise
  * it's possible that no read will be done of the messages.
- * <p/>
+ *
  * There are three types of messages that this handler accepts for writing, {@link StreamedHttpResponse},
  * {@link WebSocketHttpResponse} and {@link FullHttpResponse}. Writing any other messages may potentially
  * lead to HTTP message mangling.
- * <p/>
+ *
  * As long as messages are returned in the order that they arrive, this handler implicitly supports HTTP
  * pipelining.
  */

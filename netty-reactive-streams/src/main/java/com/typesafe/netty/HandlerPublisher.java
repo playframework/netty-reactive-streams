@@ -60,6 +60,9 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
     /**
      * Returns {@code true} if the given message should be handled. If {@code false} it will be passed to the next
      * {@link ChannelInboundHandler} in the {@link ChannelPipeline}.
+     *
+     * @param msg The message to check.
+     * @return True if the message should be accepted.
      */
     protected boolean acceptInboundMessage(Object msg) throws Exception {
         return matcher.match(msg);

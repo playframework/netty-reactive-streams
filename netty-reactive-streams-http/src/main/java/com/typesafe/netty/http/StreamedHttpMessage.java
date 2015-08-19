@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpMessage;
 import org.reactivestreams.Publisher;
 
 /**
- * Combines {@link HttpMessage} and {@link Publisher<HttpContent>} into one
+ * Combines {@link HttpMessage} and {@link Publisher} into one
  * message. So it represents an http message with a stream of {@link HttpContent}
  * messages that can be subscribed to.
  *
