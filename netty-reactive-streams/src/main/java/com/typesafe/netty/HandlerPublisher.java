@@ -391,7 +391,6 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
 
         switch (state) {
             case NO_SUBSCRIBER:
-            case NO_SUBSCRIBER_ERROR:
             case BUFFERING:
                 buffer.add(COMPLETE);
                 state = DRAINING;
@@ -400,6 +399,10 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
             case IDLE:
                 subscriber.onComplete();
                 state = DONE;
+                break;
+            case NO_SUBSCRIBER_ERROR:
+                // Ignore, we're already going to complete the stream with an error
+                // when the subscriber subscribes.
                 break;
         }
     }
