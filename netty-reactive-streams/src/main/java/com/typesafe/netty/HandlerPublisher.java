@@ -203,32 +203,40 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
-        verifyRegisteredWithRightExecutor(ctx);
-
-        switch(state) {
-            case NO_SUBSCRIBER_OR_CONTEXT:
-                this.ctx = ctx;
-                // It's set, we don't have a subscriber
-                state = NO_SUBSCRIBER;
-                break;
-            case NO_CONTEXT:
-                this.ctx = ctx;
-                state = IDLE;
-                subscriber.onSubscribe(new ChannelSubscription());
-                break;
-            default:
-                throw new IllegalStateException("This handler has already been placed in a handler pipeline");
+        // If the channel is not yet registered, then it's not safe to invoke any methods on it, eg read() or close()
+        // So don't provide the context until it is registered.
+        if (ctx.channel().isRegistered()) {
+            provideChannelContext(ctx);
         }
     }
 
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        verifyRegisteredWithRightExecutor(ctx);
+        provideChannelContext(ctx);
         ctx.fireChannelRegistered();
     }
 
+    private void provideChannelContext(ChannelHandlerContext ctx) {
+        switch(state) {
+            case NO_SUBSCRIBER_OR_CONTEXT:
+                verifyRegisteredWithRightExecutor(ctx);
+                this.ctx = ctx;
+                // It's set, we don't have a subscriber
+                state = NO_SUBSCRIBER;
+                break;
+            case NO_CONTEXT:
+                verifyRegisteredWithRightExecutor(ctx);
+                this.ctx = ctx;
+                state = IDLE;
+                subscriber.onSubscribe(new ChannelSubscription());
+                break;
+            default:
+                // Ignore, this could be invoked twice by both handlerAdded and channelRegistered.
+        }
+    }
+
     private void verifyRegisteredWithRightExecutor(ChannelHandlerContext ctx) {
-        if (ctx.channel().isRegistered() && !executor.inEventLoop()) {
+        if (!executor.inEventLoop()) {
             throw new IllegalArgumentException("Channel handler MUST be registered with the same EventExecutor that it is created with.");
         }
     }
