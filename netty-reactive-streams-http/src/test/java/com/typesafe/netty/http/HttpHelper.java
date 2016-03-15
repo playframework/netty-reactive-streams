@@ -1,9 +1,8 @@
 package com.typesafe.netty.http;
 
-import akka.dispatch.Futures;
-import akka.japi.Function;
 import akka.japi.function.Function2;
 import akka.stream.Materializer;
+import akka.stream.javadsl.AsPublisher;
 import akka.stream.javadsl.Sink;
 import akka.stream.javadsl.Source;
 import io.netty.buffer.ByteBuf;
@@ -11,13 +10,12 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.*;
 import io.netty.util.ReferenceCountUtil;
 import org.reactivestreams.Publisher;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.Duration;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertNotNull;
@@ -77,7 +75,7 @@ public class HttpHelper {
         for (String chunk: body) {
             content.add(new DefaultHttpContent(Unpooled.copiedBuffer(chunk, Charset.forName("utf-8"))));
         }
-        Publisher<HttpContent> publisher = Source.from(content).runWith(Sink.<HttpContent>publisher(), materializer);
+        Publisher<HttpContent> publisher = Source.from(content).runWith(Sink.<HttpContent>asPublisher(AsPublisher.WITH_FANOUT), materializer);
         return new DefaultStreamedHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.valueOf(method), uri,
                 publisher);
     }
@@ -106,22 +104,22 @@ public class HttpHelper {
         for (String chunk: body) {
             content.add(new DefaultHttpContent(Unpooled.copiedBuffer(chunk, Charset.forName("utf-8"))));
         }
-        Publisher<HttpContent> publisher = Source.from(content).runWith(Sink.<HttpContent>publisher(), materializer);
+        Publisher<HttpContent> publisher = Source.from(content).runWith(Sink.<HttpContent>asPublisher(AsPublisher.WITH_FANOUT), materializer);
         StreamedHttpResponse response = new DefaultStreamedHttpResponse(version, HttpResponseStatus.OK, publisher);
         HttpHeaders.setContentLength(response, contentLength);
         return response;
     }
 
     public String extractBody(Object msg) throws Exception {
-        return Await.result(extractBodyAsync(msg), Duration.apply(1, TimeUnit.SECONDS));
+        return extractBodyAsync(msg).toCompletableFuture().get(1, TimeUnit.SECONDS);
     }
 
-    public Future<String> extractBodyAsync(Object msg) {
+    public CompletionStage<String> extractBodyAsync(Object msg) {
         if (msg instanceof FullHttpMessage) {
             String body = contentAsString((FullHttpMessage) msg);
-            return Futures.successful(body);
+            return CompletableFuture.completedFuture(body);
         } else if (msg instanceof StreamedHttpMessage) {
-            return Source.from((StreamedHttpMessage) msg).runFold("", new Function2<String, HttpContent, String>() {
+            return Source.fromPublisher((StreamedHttpMessage) msg).runFold("", new Function2<String, HttpContent, String>() {
                 @Override
                 public String apply(String body, HttpContent content) throws Exception {
                     return body + contentAsString(content);
@@ -158,7 +156,7 @@ public class HttpHelper {
 
     public void cancelStreamedMessage(Object msg) {
         if (msg instanceof StreamedHttpMessage) {
-            Source.from((StreamedHttpMessage) msg).runWith(Sink.<HttpContent>cancelled(), materializer);
+            Source.fromPublisher((StreamedHttpMessage) msg).runWith(Sink.<HttpContent>cancelled(), materializer);
         } else {
             throw new IllegalArgumentException("Unknown message type: " + msg);
         }

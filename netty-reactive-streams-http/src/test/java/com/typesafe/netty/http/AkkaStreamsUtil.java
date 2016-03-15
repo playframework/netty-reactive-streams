@@ -1,35 +1,30 @@
 package com.typesafe.netty.http;
 
 import akka.japi.Pair;
-import akka.japi.function.Function2;
+import akka.japi.function.Creator;
 import akka.stream.Materializer;
-import akka.stream.javadsl.Flow;
-import akka.stream.javadsl.Keep;
-import akka.stream.javadsl.Sink;
-import akka.stream.javadsl.Source;
+import akka.stream.javadsl.*;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
-import scala.runtime.BoxedUnit;
 
 public class AkkaStreamsUtil {
 
     public static <In, Out> Processor<In, Out> flowToProcessor(Flow<In, Out, ?> flow, Materializer materializer) {
         Pair<Subscriber<In>, Publisher<Out>> pair =
-                Source.<In>subscriber()
+                Source.<In>asSubscriber()
                         .via(flow)
-                        .toMat(Sink.<Out>publisher(), Keep.<Subscriber<In>, Publisher<Out>>both())
+                        .toMat(Sink.<Out>asPublisher(AsPublisher.WITH_FANOUT), Keep.<Subscriber<In>, Publisher<Out>>both())
                         .run(materializer);
 
         return new DelegateProcessor<>(pair.first(), pair.second());
     }
 
     public static <In, Out> Flow<In, Out, ?> processorToFlow(final Processor<In, Out> processor) {
-        return Flow.wrap(Sink.<In>publisher(), Source.from(processor), new Function2<Publisher<In>, BoxedUnit, BoxedUnit>() {
+        return Flow.fromProcessor(new Creator<Processor<In, Out>>() {
             @Override
-            public BoxedUnit apply(Publisher<In> publisher, BoxedUnit unit) throws Exception {
-                publisher.subscribe(processor);
-                return unit;
+            public Processor<In, Out> create() throws Exception {
+                return processor;
             }
         });
     }
