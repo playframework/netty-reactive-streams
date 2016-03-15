@@ -1,13 +1,11 @@
 package com.typesafe.netty.http;
 
+import akka.NotUsed;
 import akka.actor.ActorSystem;
 import akka.japi.function.Function;
 import akka.stream.ActorMaterializer;
 import akka.stream.Materializer;
-import akka.stream.javadsl.Flow;
-import akka.stream.javadsl.Keep;
-import akka.stream.javadsl.Sink;
-import akka.stream.javadsl.Source;
+import akka.stream.javadsl.*;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.*;
@@ -16,8 +14,6 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.tck.IdentityProcessorVerification;
 import org.reactivestreams.tck.TestEnvironment;
 import org.testng.annotations.*;
-import scala.concurrent.Future;
-import scala.runtime.BoxedUnit;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -70,7 +66,7 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
         ProcessorHttpServer server = new ProcessorHttpServer(eventLoop);
 
         // A flow that echos HttpRequest bodies in HttpResponse bodies
-        final Flow<HttpRequest, HttpResponse, BoxedUnit> flow = Flow.<HttpRequest>create().map(
+        final Flow<HttpRequest, HttpResponse, NotUsed> flow = Flow.<HttpRequest>create().map(
                 new Function<HttpRequest, HttpResponse>() {
                     public HttpResponse apply(HttpRequest request) throws Exception {
                         return helper.echo(request);
@@ -96,13 +92,7 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
     public Processor<String, String> createIdentityProcessor(int bufferSize) {
 
         ProcessorHttpClient client = new ProcessorHttpClient(eventLoop);
-
-        Processor<HttpRequest, HttpResponse> connection = null;
-        try {
-            connection = client.connect(serverBindChannel.localAddress());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        Processor<HttpRequest, HttpResponse> connection = getProcessor(client);
 
         Flow<String, String, ?> flow = Flow.<String>create()
                 // Convert the Strings to HttpRequests
@@ -127,9 +117,9 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
                 // Send the flow via the HTTP client connection
                 .via(AkkaStreamsUtil.processorToFlow(connection))
                 // Convert the responses to Strings
-                .mapAsync(4, new Function<HttpResponse, Future<String>>() {
+                .mapAsync(4, new Function<HttpResponse, CompletionStage<String>>() {
                     @Override
-                    public Future<String> apply(HttpResponse response) throws Exception {
+                    public CompletionStage<String> apply(HttpResponse response) throws Exception {
                         return helper.extractBodyAsync(response);
                     }
                 });
@@ -137,10 +127,18 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
         return AkkaStreamsUtil.flowToProcessor(flow, materializer);
     }
 
+    private Processor<HttpRequest, HttpResponse> getProcessor(ProcessorHttpClient client) {
+        try {
+            return client.connect(serverBindChannel.localAddress());
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
     @Override
     public Publisher<String> createFailedPublisher() {
         return Source.<String>failed(new RuntimeException("failed"))
-                .toMat(Sink.<String>publisher(), Keep.<BoxedUnit, Publisher<String>>right()).run(materializer);
+                .toMat(Sink.<String>asPublisher(AsPublisher.WITH_FANOUT), Keep.<NotUsed, Publisher<String>>right()).run(materializer);
     }
 
     @Override

@@ -1,13 +1,10 @@
 package com.typesafe.netty.http;
 
 import akka.actor.ActorSystem;
-import akka.dispatch.Mapper;
 import akka.japi.function.Function;
 import akka.stream.ActorMaterializer;
 import akka.stream.Materializer;
 import akka.stream.javadsl.Flow;
-import akka.stream.javadsl.Sink;
-import akka.stream.javadsl.Source;
 import com.typesafe.netty.HandlerPublisher;
 import com.typesafe.netty.HandlerSubscriber;
 import io.netty.bootstrap.Bootstrap;
@@ -20,17 +17,16 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.*;
 import org.reactivestreams.Processor;
-import org.reactivestreams.Publisher;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import scala.concurrent.Future;
 
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -164,13 +160,13 @@ public class HttpStreamsTest {
         start(new AutoReadHandler() {
             @Override
             public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
-                helper.extractBodyAsync(msg).map(new Mapper<String, Object>() {
+                helper.extractBodyAsync(msg).thenApply(new java.util.function.Function<String, Object>() {
                     @Override
-                    public Void apply(String body) {
+                    public Object apply(String body) {
                         ctx.writeAndFlush(helper.createFullResponse(body));
                         return null;
                     }
-                }, actorSystem.dispatcher());
+                });
             }
         });
         StreamedHttpRequest request = helper.createStreamedRequest("POST", "/", Arrays.asList("hello", " ", "world"), 11);
@@ -214,8 +210,8 @@ public class HttpStreamsTest {
                 HandlerSubscriber<HttpResponse> subscriber = new HandlerSubscriber<>(ctx.executor());
                 ctx.pipeline().addLast(publisher, subscriber);
                 Processor<HttpRequest, HttpResponse> processor = AkkaStreamsUtil.flowToProcessor(Flow.<HttpRequest>create()
-                        .mapAsync(4, new Function<HttpRequest, Future<String>>() {
-                            public Future<String> apply(HttpRequest request) throws Exception {
+                        .mapAsync(4, new Function<HttpRequest, CompletionStage<String>>() {
+                            public CompletionStage<String> apply(HttpRequest request) throws Exception {
                                 return helper.extractBodyAsync(request);
                             }
                         }).map(new Function<String, HttpResponse>() {
