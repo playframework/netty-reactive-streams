@@ -2,9 +2,7 @@ package com.typesafe.netty.http;
 
 import com.typesafe.netty.HandlerPublisher;
 import com.typesafe.netty.HandlerSubscriber;
-import io.netty.channel.ChannelDuplexHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
+import io.netty.channel.*;
 import io.netty.handler.codec.http.*;
 import io.netty.util.ReferenceCountUtil;
 import org.reactivestreams.Publisher;
@@ -246,9 +244,25 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
         if (out.message instanceof FullHttpMessage) {
             // Forward as is
             ctx.writeAndFlush(out.message, out.promise);
-            sentOutMessage(ctx);
-            outgoing.remove();
-            flushNext(ctx);
+            out.promise.addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                    if (ctx.executor().inEventLoop()) {
+                        sentOutMessage(ctx);
+                        outgoing.remove();
+                        flushNext(ctx);
+                    } else {
+                        ctx.executor().execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                sentOutMessage(ctx);
+                                outgoing.remove();
+                                flushNext(ctx);
+                            }
+                        });
+                    }
+                }
+            });
 
         } else if (out.message instanceof StreamedHttpMessage) {
 
@@ -292,6 +306,9 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
 
         ChannelPromise promise = outgoing.remove().promise;
         if (sendLastHttpContent) {
+            // completeBody is executed after all the content has been flushed, we don't need to wait for an empty
+            // last content to be flushed before invoking the sentOutMessage callback because the close can happen
+            // immediately.
             ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT, promise);
         } else {
             promise.setSuccess();
