@@ -86,6 +86,7 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
 
     private State state = NO_SUBSCRIPTION_OR_CONTEXT;
     private long outstandingDemand = 0;
+    private ChannelFuture lastWriteFuture;
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
@@ -213,7 +214,8 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
     public void onNext(T t) {
 
         // Publish straight to the context.
-        ctx.writeAndFlush(t).addListener(new ChannelFutureListener() {
+        lastWriteFuture = ctx.writeAndFlush(t);
+        lastWriteFuture.addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
 
@@ -233,7 +235,16 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
 
     @Override
     public void onComplete() {
-        complete();
+        if (lastWriteFuture == null) {
+            complete();
+        } else {
+            lastWriteFuture.addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                    complete();
+                }
+            });
+        }
     }
 
     private void doClose() {
