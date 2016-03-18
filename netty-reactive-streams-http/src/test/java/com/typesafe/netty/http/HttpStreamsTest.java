@@ -16,11 +16,14 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.*;
+import org.omg.CORBA.TIMEOUT;
 import org.reactivestreams.Processor;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
 
 import java.nio.charset.Charset;
 import java.util.Arrays;
@@ -41,6 +44,8 @@ public class HttpStreamsTest {
     private Channel serverBindChannel;
     private Channel client;
     private final BlockingQueue<Object> clientEvents = new LinkedBlockingQueue<>();
+
+    private static final long TIMEOUT_MS = 5000;
 
     @Test
     public void streamedRequestResponse() throws Exception {
@@ -104,7 +109,7 @@ public class HttpStreamsTest {
         assertFalse(HttpHeaders.isContentLengthSet(response));
         assertEquals(helper.extractBody(response), "hello world");
 
-        client.closeFuture().await(100, TimeUnit.MILLISECONDS);
+        client.closeFuture().await(TIMEOUT_MS, TimeUnit.MILLISECONDS);
         assertFalse(client.isOpen());
     }
 
@@ -261,7 +266,7 @@ public class HttpStreamsTest {
         FullHttpResponse response = receiveFullResponse();
         assertEquals(helper.extractBody(response), "");
 
-        client.closeFuture().await(100, TimeUnit.MILLISECONDS);
+        client.closeFuture().await(TIMEOUT_MS, TimeUnit.MILLISECONDS);
         assertFalse(client.isOpen());
     }
 
@@ -280,7 +285,7 @@ public class HttpStreamsTest {
         StreamedHttpResponse response = receiveStreamedResponse();
         assertEquals(helper.extractBody(response), "hello world");
 
-        client.closeFuture().await(100, TimeUnit.MILLISECONDS);
+        client.closeFuture().await(TIMEOUT_MS, TimeUnit.MILLISECONDS);
         assertFalse(client.isOpen());
     }
 
@@ -299,7 +304,7 @@ public class HttpStreamsTest {
         FullHttpResponse response = receiveFullResponse();
         assertEquals(helper.extractBody(response), "");
 
-        client.closeFuture().await(100, TimeUnit.MILLISECONDS);
+        client.closeFuture().await(TIMEOUT_MS, TimeUnit.MILLISECONDS);
         assertFalse(client.isOpen());
     }
 
@@ -317,7 +322,7 @@ public class HttpStreamsTest {
         StreamedHttpResponse response = receiveStreamedResponse();
         assertEquals(helper.extractBody(response), "hello world");
 
-        client.closeFuture().await(100, TimeUnit.MILLISECONDS);
+        client.closeFuture().await(TIMEOUT_MS, TimeUnit.MILLISECONDS);
         assertFalse(client.isOpen());
     }
 
@@ -330,10 +335,10 @@ public class HttpStreamsTest {
     }
 
     @AfterClass
-    public void stopEventLoop() {
+    public void stopEventLoop() throws Exception {
         clientEvents.clear();
-        actorSystem.shutdown();
-        eventLoop.shutdownGracefully();
+        Await.ready(actorSystem.terminate(), Duration.create(10000, TimeUnit.MILLISECONDS));
+        eventLoop.shutdownGracefully(100, 10000, TimeUnit.MILLISECONDS).await();
     }
 
     @AfterMethod
@@ -390,7 +395,7 @@ public class HttpStreamsTest {
     }
 
     private StreamedHttpResponse receiveStreamedResponse() throws InterruptedException {
-        Object msg = clientEvents.poll(100, TimeUnit.MILLISECONDS);
+        Object msg = clientEvents.poll(TIMEOUT_MS, TimeUnit.MILLISECONDS);
         assertNotNull(msg, "Read response timed out");
         if (msg instanceof StreamedHttpResponse) {
             return (StreamedHttpResponse) msg;
@@ -400,7 +405,7 @@ public class HttpStreamsTest {
     }
 
     private FullHttpResponse receiveFullResponse() throws InterruptedException {
-        Object msg = clientEvents.poll(100, TimeUnit.MILLISECONDS);
+        Object msg = clientEvents.poll(TIMEOUT_MS, TimeUnit.MILLISECONDS);
         assertNotNull(msg);
         if (msg instanceof FullHttpResponse) {
             return (FullHttpResponse) msg;

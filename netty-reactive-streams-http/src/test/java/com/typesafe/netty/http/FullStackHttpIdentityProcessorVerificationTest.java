@@ -14,6 +14,8 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.tck.IdentityProcessorVerification;
 import org.reactivestreams.tck.TestEnvironment;
 import org.testng.annotations.*;
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -43,25 +45,15 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
     private ExecutorService executorService;
 
     public FullStackHttpIdentityProcessorVerificationTest() {
-        super(new TestEnvironment(500));
+        super(new TestEnvironment(1000));
     }
 
     @BeforeClass
-    public void startActorSystem() {
+    public void start() throws Exception {
         executorService = Executors.newCachedThreadPool();
         actorSystem = ActorSystem.create();
         materializer = ActorMaterializer.create(actorSystem);
         helper = new HttpHelper(materializer);
-    }
-
-    @AfterClass
-    public void stopActorSystem() {
-        executorService.shutdown();
-        actorSystem.shutdown();
-    }
-
-    @BeforeClass
-    public void startServer() throws Exception {
         eventLoop = new NioEventLoopGroup();
         ProcessorHttpServer server = new ProcessorHttpServer(eventLoop);
 
@@ -83,9 +75,11 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
     }
 
     @AfterClass
-    public void stopServer() throws Exception {
+    public void stop() throws Exception {
         serverBindChannel.close().await();
-        eventLoop.shutdownGracefully();
+        executorService.shutdown();
+        Await.ready(actorSystem.terminate(), Duration.create(10000, TimeUnit.MILLISECONDS));
+        eventLoop.shutdownGracefully(100, 10000, TimeUnit.MILLISECONDS).await();
     }
 
     @Override
