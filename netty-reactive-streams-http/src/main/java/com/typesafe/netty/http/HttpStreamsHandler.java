@@ -247,20 +247,14 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
             out.promise.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                    if (ctx.executor().inEventLoop()) {
-                        sentOutMessage(ctx);
-                        outgoing.remove();
-                        flushNext(ctx);
-                    } else {
-                        ctx.executor().execute(new Runnable() {
-                            @Override
-                            public void run() {
-                                sentOutMessage(ctx);
-                                outgoing.remove();
-                                flushNext(ctx);
-                            }
-                        });
-                    }
+                    executeInEventLoop(ctx, new Runnable() {
+                        @Override
+                        public void run() {
+                            sentOutMessage(ctx);
+                            outgoing.remove();
+                            flushNext(ctx);
+                        }
+                    });
                 }
             });
 
@@ -276,17 +270,12 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
 
                 @Override
                 protected void complete() {
-                    if (ctx.executor().inEventLoop()) {
-                        completeBody(ctx);
-                    } else {
-
-                        ctx.executor().execute(new Runnable() {
-                            @Override
-                            public void run() {
-                                completeBody(ctx);
-                            }
-                        });
-                    }
+                    executeInEventLoop(ctx, new Runnable() {
+                        @Override
+                        public void run() {
+                            completeBody(ctx);
+                        }
+                    });
                 }
             };
 
@@ -301,21 +290,32 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
 
     }
 
-    private void completeBody(ChannelHandlerContext ctx) {
+    private void completeBody(final ChannelHandlerContext ctx) {
         ctx.pipeline().remove(ctx.name() + "-body-subscriber");
 
-        ChannelPromise promise = outgoing.remove().promise;
         if (sendLastHttpContent) {
-            // completeBody is executed after all the content has been flushed, we don't need to wait for an empty
-            // last content to be flushed before invoking the sentOutMessage callback because the close can happen
-            // immediately.
-            ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT, promise);
+            ChannelPromise promise = outgoing.peek().promise;
+            ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT, promise).addListener(
+                    new ChannelFutureListener() {
+                        @Override
+                        public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                            executeInEventLoop(ctx, new Runnable() {
+                                @Override
+                                public void run() {
+                                    outgoing.remove();
+                                    sentOutMessage(ctx);
+                                    flushNext(ctx);
+                                }
+                            });
+                        }
+                    }
+            );
         } else {
-            promise.setSuccess();
+            outgoing.remove().promise.setSuccess();
+            sentOutMessage(ctx);
+            flushNext(ctx);
         }
 
-        sentOutMessage(ctx);
-        flushNext(ctx);
     }
 
     private void flushNext(ChannelHandlerContext ctx) {
@@ -323,6 +323,14 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
             unbufferedWrite(ctx, outgoing.element());
         } else {
             ctx.fireChannelWritabilityChanged();
+        }
+    }
+
+    private void executeInEventLoop(ChannelHandlerContext ctx, Runnable runnable) {
+        if (ctx.executor().inEventLoop()) {
+            runnable.run();
+        } else {
+            ctx.executor().execute(runnable);
         }
     }
 
