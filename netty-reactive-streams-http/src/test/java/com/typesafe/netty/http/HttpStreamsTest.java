@@ -114,6 +114,20 @@ public class HttpStreamsTest {
     }
 
     @Test
+    public void noContentLength204Response() throws Exception {
+        responseServer(new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NO_CONTENT,
+                Unpooled.EMPTY_BUFFER));
+        client.writeAndFlush(helper.createStreamedRequest("GET", "/", Collections.<String>emptyList()));
+        FullHttpResponse response = receiveFullResponse();
+
+        assertFalse(HttpHeaders.isContentLengthSet(response));
+        assertEquals(helper.extractBody(response), "");
+
+        client.closeFuture().await(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        assertTrue(client.isOpen());
+    }
+
+    @Test
     public void cancelRequestBody() throws Exception {
         createEchoServer();
         start(new AutoReadHandler() {

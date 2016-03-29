@@ -142,12 +142,24 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
                 close = true;
                 continueExpected = false;
             }
-            if (!HttpHeaders.isContentLengthSet(out.message) && !HttpHeaders.isTransferEncodingChunked(out.message)) {
+            // According to RFC 7230 a server MUST NOT send a Content-Length or a Transfer-Encoding when the status
+            // code is 1xx or 204, also a status code 304 may not have a Content-Length or Transfer-Encoding set.
+            if (!HttpHeaders.isContentLengthSet(out.message) && !HttpHeaders.isTransferEncodingChunked(out.message)
+                    && canHaveBody(out.message)) {
                 HttpHeaders.setKeepAlive(out.message, false);
                 close = true;
             }
             super.unbufferedWrite(ctx, out);
         }
+    }
+
+    private boolean canHaveBody(HttpResponse message) {
+        HttpResponseStatus status = message.getStatus();
+        // All 1xx (Informational), 204 (No Content), and 304 (Not Modified)
+        // responses do not include a message body
+        return !(status == HttpResponseStatus.CONTINUE || status == HttpResponseStatus.SWITCHING_PROTOCOLS ||
+                status == HttpResponseStatus.PROCESSING || status == HttpResponseStatus.NO_CONTENT ||
+                status == HttpResponseStatus.NOT_MODIFIED);
     }
 
     @Override
