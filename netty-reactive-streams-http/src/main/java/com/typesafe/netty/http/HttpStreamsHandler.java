@@ -186,7 +186,7 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
                     ReferenceCountUtil.release(content);
                 }
 
-                ctx.channel().pipeline().remove(ctx.name() + "-body-publisher");
+                removeHandlerIfActive(ctx, ctx.name() + "-body-publisher");
                 currentlyStreamedMessage = null;
                 consumedInMessage(ctx);
 
@@ -199,7 +199,7 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
             if (content instanceof LastHttpContent) {
                 ignoreBodyRead = false;
                 if (currentlyStreamedMessage != null) {
-                    ctx.channel().pipeline().remove(ctx.name() + "-body-publisher");
+                    removeHandlerIfActive(ctx, ctx.name() + "-body-publisher");
                 }
                 currentlyStreamedMessage = null;
             }
@@ -291,7 +291,7 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
     }
 
     private void completeBody(final ChannelHandlerContext ctx) {
-        ctx.pipeline().remove(ctx.name() + "-body-subscriber");
+        removeHandlerIfActive(ctx, ctx.name() + "-body-subscriber");
 
         if (sendLastHttpContent) {
             ChannelPromise promise = outgoing.peek().promise;
@@ -315,7 +315,18 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
             sentOutMessage(ctx);
             flushNext(ctx);
         }
+    }
 
+    /**
+     * Most operations we want to do even if the channel is not active, because if it's not, then we want to encounter
+     * the error that occurs when that operation happens and so that it can be passed up to the user. However, removing
+     * handlers should only be done if the channel is active, because the error that is encountered when they aren't
+     * makes no sense to the user (NoSuchElementException).
+     */
+    private void removeHandlerIfActive(ChannelHandlerContext ctx, String name) {
+        if (ctx.channel().isActive()) {
+            ctx.pipeline().remove(name);
+        }
     }
 
     private void flushNext(ChannelHandlerContext ctx) {
