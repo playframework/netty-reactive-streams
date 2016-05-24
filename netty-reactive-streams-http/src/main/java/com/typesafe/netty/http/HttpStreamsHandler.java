@@ -291,7 +291,15 @@ abstract class HttpStreamsHandler<In extends HttpMessage, Out extends HttpMessag
     }
 
     private void completeBody(final ChannelHandlerContext ctx) {
-        ctx.pipeline().remove(ctx.name() + "-body-subscriber");
+        // Netty 4.x will schedule a channelInactive event, which eventually
+        // will call a `DefaultChannelPipeline.destroy` which will remove all
+        // the handlers from the pipeline, so we need to check if the handler
+        // is still inside our pipeline
+        // See https://github.com/playframework/playframework/issues/6151
+        String channelName = ctx.name() + "-body-subscriber";
+        if (ctx.pipeline().get(channelName) != null) {
+            ctx.pipeline().remove(channelName);
+        }
 
         if (sendLastHttpContent) {
             ChannelPromise promise = outgoing.peek().promise;
