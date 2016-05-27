@@ -67,7 +67,7 @@ public class WebSocketsTest {
                         }
                     }).toProcessor().run(materializer);
 
-                    ctx.writeAndFlush(new DefaultWebSocketHttpResponse(request.getProtocolVersion(),
+                    ctx.writeAndFlush(new DefaultWebSocketHttpResponse(request.protocolVersion(),
                             HttpResponseStatus.valueOf(200), processor,
                             new WebSocketServerHandshakerFactory("ws://127.0.0.1/" + port + "/", null, false)
                     ));
@@ -118,7 +118,7 @@ public class WebSocketsTest {
 
                     Processor<WebSocketFrame, WebSocketFrame> processor = Flow.<WebSocketFrame>create().toProcessor().run(materializer);
 
-                    ctx.writeAndFlush(new DefaultWebSocketHttpResponse(request.getProtocolVersion(),
+                    ctx.writeAndFlush(new DefaultWebSocketHttpResponse(request.protocolVersion(),
                             HttpResponseStatus.valueOf(200), processor,
                             new WebSocketServerHandshakerFactory("ws://127.0.0.1/" + port + "/", null, false)
                     ));
@@ -128,17 +128,17 @@ public class WebSocketsTest {
 
         FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/");
         HttpHeaders headers = request.headers();
-        headers.add(HttpHeaders.Names.UPGRADE, HttpHeaders.Values.WEBSOCKET.toLowerCase())
-                .add(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.UPGRADE)
-                .add(HttpHeaders.Names.SEC_WEBSOCKET_KEY, "foobar")
-                .add(HttpHeaders.Names.HOST, "http://127.0.0.1:" + port)
-                .add(HttpHeaders.Names.SEC_WEBSOCKET_ORIGIN, "http://127.0.0.1:" + port)
-                .add(HttpHeaders.Names.SEC_WEBSOCKET_VERSION, "1");
+        headers.add(HttpHeaderNames.UPGRADE, HttpHeaderValues.WEBSOCKET.toLowerCase())
+                .add(HttpHeaderNames.CONNECTION, HttpHeaderValues.UPGRADE)
+                .add(HttpHeaderNames.SEC_WEBSOCKET_KEY, "foobar")
+                .add(HttpHeaderNames.HOST, "http://127.0.0.1:" + port)
+                .add(HttpHeaderNames.SEC_WEBSOCKET_ORIGIN, "http://127.0.0.1:" + port)
+                .add(HttpHeaderNames.SEC_WEBSOCKET_VERSION, "1");
         client.writeAndFlush(request);
 
         FullHttpResponse response = receiveFullResponse();
-        assertEquals(response.getStatus(), HttpResponseStatus.UPGRADE_REQUIRED);
-        assertEquals(response.headers().get(HttpHeaders.Names.SEC_WEBSOCKET_VERSION), "13");
+        assertEquals(response.status(), HttpResponseStatus.UPGRADE_REQUIRED);
+        assertEquals(response.headers().get(HttpHeaderNames.SEC_WEBSOCKET_VERSION), "13");
         ReferenceCountUtil.release(response);
     }
 

@@ -42,22 +42,22 @@ public class HttpStreamsClientHandler extends HttpStreamsHandler<HttpResponse, H
 
     @Override
     protected boolean hasBody(HttpResponse response) {
-        if (response.getStatus().code() >= 100 && response.getStatus().code() < 200) {
+        if (response.status().code() >= 100 && response.status().code() < 200) {
             return false;
         }
 
-        if (response.getStatus().equals(HttpResponseStatus.NO_CONTENT) ||
-                response.getStatus().equals(HttpResponseStatus.NOT_MODIFIED)) {
+        if (response.status().equals(HttpResponseStatus.NO_CONTENT) ||
+                response.status().equals(HttpResponseStatus.NOT_MODIFIED)) {
             return false;
         }
 
-        if (HttpHeaders.isTransferEncodingChunked(response)) {
+        if (HttpUtil.isTransferEncodingChunked(response)) {
             return true;
         }
 
 
-        if (HttpHeaders.isContentLengthSet(response)) {
-            return HttpHeaders.getContentLength(response) > 0;
+        if (HttpUtil.isContentLengthSet(response)) {
+            return HttpUtil.getContentLength(response) > 0;
         }
 
         return true;
@@ -103,7 +103,7 @@ public class HttpStreamsClientHandler extends HttpStreamsHandler<HttpResponse, H
 
     @Override
     protected void subscribeSubscriberToStream(StreamedHttpMessage msg, Subscriber<HttpContent> subscriber) {
-        if (HttpHeaders.is100ContinueExpected(msg)) {
+        if (HttpUtil.is100ContinueExpected(msg)) {
             awaiting100Continue = subscriber;
             awaiting100ContinueMessage = msg;
         } else {
@@ -116,7 +116,7 @@ public class HttpStreamsClientHandler extends HttpStreamsHandler<HttpResponse, H
 
         if (msg instanceof HttpResponse && awaiting100Continue != null && withServer == 0) {
             HttpResponse response = (HttpResponse) msg;
-            if (response.getStatus().equals(HttpResponseStatus.CONTINUE)) {
+            if (response.status().equals(HttpResponseStatus.CONTINUE)) {
                 super.subscribeSubscriberToStream(awaiting100ContinueMessage, awaiting100Continue);
                 awaiting100Continue = null;
                 awaiting100ContinueMessage = null;

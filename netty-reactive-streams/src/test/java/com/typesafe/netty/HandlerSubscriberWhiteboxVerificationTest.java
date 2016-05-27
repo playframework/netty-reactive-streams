@@ -1,7 +1,6 @@
 package com.typesafe.netty;
 
 import io.netty.channel.*;
-import io.netty.channel.local.LocalEventLoopGroup;
 import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Promise;
 import org.reactivestreams.Subscriber;
@@ -18,7 +17,7 @@ public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhitebo
         super(new TestEnvironment());
     }
 
-    private LocalEventLoopGroup eventLoop;
+    private DefaultEventLoopGroup eventLoop;
 
     // I tried making this before/after class, but encountered a strange error where after 32 publishers were created,
     // the following tests complained about the executor being shut down when I registered the channel. Though, it
@@ -26,7 +25,7 @@ public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhitebo
     @BeforeMethod
     public void startEventLoop() {
         workAroundIssue277 = false;
-        eventLoop = new LocalEventLoopGroup();
+        eventLoop = new DefaultEventLoopGroup();
     }
 
     @AfterMethod

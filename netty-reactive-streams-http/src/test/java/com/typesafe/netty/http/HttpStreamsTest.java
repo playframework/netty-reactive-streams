@@ -57,7 +57,7 @@ public class HttpStreamsTest {
         assertEquals(helper.getRequestContentLength(response), 11);
 
         assertEquals(helper.extractBody(response), "hello world");
-        assertEquals(HttpHeaders.getContentLength(response), 11);
+        assertEquals(HttpUtil.getContentLength(response), 11);
     }
 
     @Test
@@ -70,7 +70,7 @@ public class HttpStreamsTest {
         assertFalse(helper.hasRequestContentLength(response));
 
         assertEquals(helper.extractBody(response), "hello world");
-        assertTrue(HttpHeaders.isTransferEncodingChunked(response));
+        assertTrue(HttpUtil.isTransferEncodingChunked(response));
     }
 
     @Test
@@ -83,7 +83,7 @@ public class HttpStreamsTest {
         assertFalse(helper.hasRequestContentLength(response));
 
         assertEquals(helper.extractBody(response), "");
-        assertEquals(HttpHeaders.getContentLength(response), 0);
+        assertEquals(HttpUtil.getContentLength(response), 0);
     }
 
     @Test
@@ -96,7 +96,7 @@ public class HttpStreamsTest {
         assertEquals(helper.getRequestContentLength(response), 0);
 
         assertEquals(helper.extractBody(response), "");
-        assertEquals(HttpHeaders.getContentLength(response), 0);
+        assertEquals(HttpUtil.getContentLength(response), 0);
     }
 
     @Test
@@ -106,7 +106,7 @@ public class HttpStreamsTest {
         client.writeAndFlush(helper.createStreamedRequest("GET", "/", Collections.<String>emptyList()));
         StreamedHttpResponse response = receiveStreamedResponse();
 
-        assertFalse(HttpHeaders.isContentLengthSet(response));
+        assertFalse(HttpUtil.isContentLengthSet(response));
         assertEquals(helper.extractBody(response), "hello world");
 
         client.closeFuture().await(TIMEOUT_MS, TimeUnit.MILLISECONDS);
@@ -120,7 +120,7 @@ public class HttpStreamsTest {
         client.writeAndFlush(helper.createStreamedRequest("GET", "/", Collections.<String>emptyList()));
         FullHttpResponse response = receiveFullResponse();
 
-        assertFalse(HttpHeaders.isContentLengthSet(response));
+        assertFalse(HttpUtil.isContentLengthSet(response));
         assertEquals(helper.extractBody(response), "");
 
         client.closeFuture().await(TIMEOUT_MS, TimeUnit.MILLISECONDS);
@@ -134,7 +134,7 @@ public class HttpStreamsTest {
             public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
                 if (msg instanceof StreamedHttpRequest) {
                     StreamedHttpRequest request = (StreamedHttpRequest) msg;
-                    if (request.getUri().equals("/cancel")) {
+                    if (request.uri().equals("/cancel")) {
                         helper.cancelStreamedMessage(request);
                         HttpResponse response = helper.createFullResponse("");
                         response.headers().set("Cancelled", true);
@@ -189,7 +189,7 @@ public class HttpStreamsTest {
             }
         });
         StreamedHttpRequest request = helper.createStreamedRequest("POST", "/", Arrays.asList("hello", " ", "world"), 11);
-        HttpHeaders.set100ContinueExpected(request);
+        HttpUtil.set100ContinueExpected(request, true);
         client.writeAndFlush(request);
 
         StreamedHttpResponse response = receiveStreamedResponse();
@@ -210,7 +210,7 @@ public class HttpStreamsTest {
             }
         });
         StreamedHttpRequest request = helper.createStreamedRequest("POST", "/", Arrays.asList("hello", " ", "world"), 11);
-        HttpHeaders.set100ContinueExpected(request);
+        HttpUtil.set100ContinueExpected(request, true);
         client.writeAndFlush(request);
 
         StreamedHttpResponse response = receiveStreamedResponse();
@@ -249,12 +249,12 @@ public class HttpStreamsTest {
         client.writeAndFlush(helper.createStreamedRequest("POST", "/", Collections.singletonList("request 1"), 9));
         client.writeAndFlush(helper.createStreamedRequest("POST", "/", Collections.singletonList("request 2"), 9));
         StreamedHttpRequest request3 = helper.createStreamedRequest("POST", "/", Collections.singletonList("request 3"), 9);
-        HttpHeaders.set100ContinueExpected(request3);
+        HttpUtil.set100ContinueExpected(request3, true);
         client.writeAndFlush(request3);
         client.writeAndFlush(helper.createStreamedRequest("POST", "/", Collections.singletonList("request 4"), 9));
         client.writeAndFlush(helper.createStreamedRequest("POST", "/", Collections.singletonList("request 5"), 9));
         StreamedHttpRequest request6 = helper.createStreamedRequest("POST", "/", Collections.singletonList("request 6"), 9);
-        HttpHeaders.set100ContinueExpected(request6);
+        HttpUtil.set100ContinueExpected(request6, true);
         client.writeAndFlush(request6);
 
         assertEquals(helper.extractBody(receiveStreamedResponse()), "request 1");
@@ -309,7 +309,7 @@ public class HttpStreamsTest {
             @Override
             public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
                 HttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_0, HttpResponseStatus.OK);
-                HttpHeaders.setContentLength(response, 0);
+                HttpUtil.setContentLength(response, 0);
                 ctx.writeAndFlush(response);
             }
         });

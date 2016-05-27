@@ -29,7 +29,7 @@ class EmptyHttpResponse extends DelegateHttpResponse implements FullHttpResponse
         if (response instanceof FullHttpResponse) {
             return new EmptyHttpResponse(((FullHttpResponse) response).copy());
         } else {
-            DefaultHttpResponse copy = new DefaultHttpResponse(getProtocolVersion(), getStatus());
+            DefaultHttpResponse copy = new DefaultHttpResponse(protocolVersion(), status());
             copy.headers().set(headers());
             return new EmptyHttpResponse(copy);
         }
@@ -48,14 +48,50 @@ class EmptyHttpResponse extends DelegateHttpResponse implements FullHttpResponse
     }
 
     @Override
+    public FullHttpResponse touch() {
+        if (response instanceof FullHttpResponse) {
+            return ((FullHttpResponse) response).touch();
+        } else {
+            return this;
+        }
+    }
+
+    @Override
+    public FullHttpResponse touch(Object o) {
+        if (response instanceof FullHttpResponse) {
+            return ((FullHttpResponse) response).touch(o);
+        } else {
+            return this;
+        }
+    }
+
+    @Override
     public HttpHeaders trailingHeaders() {
         return new DefaultHttpHeaders();
     }
 
     @Override
-    public HttpContent duplicate() {
-        if (response instanceof HttpContent) {
-            return ((HttpContent) response).duplicate();
+    public FullHttpResponse duplicate() {
+        if (response instanceof FullHttpResponse) {
+            return ((FullHttpResponse) response).duplicate();
+        } else {
+            return this;
+        }
+    }
+
+    @Override
+    public FullHttpResponse retainedDuplicate() {
+        if (response instanceof FullHttpResponse) {
+            return ((FullHttpResponse) response).retainedDuplicate();
+        } else {
+            return this;
+        }
+    }
+
+    @Override
+    public FullHttpResponse replace(ByteBuf byteBuf) {
+        if (response instanceof FullHttpResponse) {
+            return ((FullHttpResponse) response).replace(byteBuf);
         } else {
             return this;
         }

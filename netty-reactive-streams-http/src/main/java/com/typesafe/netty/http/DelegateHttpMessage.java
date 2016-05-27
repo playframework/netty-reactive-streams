@@ -12,8 +12,14 @@ class DelegateHttpMessage implements HttpMessage {
     }
 
     @Override
+    @Deprecated
     public HttpVersion getProtocolVersion() {
-        return message.getProtocolVersion();
+        return message.protocolVersion();
+    }
+
+    @Override
+    public HttpVersion protocolVersion() {
+        return message.protocolVersion();
     }
 
     @Override
@@ -28,8 +34,14 @@ class DelegateHttpMessage implements HttpMessage {
     }
 
     @Override
+    @Deprecated
     public DecoderResult getDecoderResult() {
-        return message.getDecoderResult();
+        return message.decoderResult();
+    }
+
+    @Override
+    public DecoderResult decoderResult() {
+        return message.decoderResult();
     }
 
     @Override
