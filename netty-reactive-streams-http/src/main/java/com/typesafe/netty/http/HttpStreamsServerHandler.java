@@ -64,9 +64,10 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
 
     @Override
     protected boolean hasBody(HttpRequest request) {
-        // Http requests don't have a body if they define 0 content length, or no content length and no transfer
-        // encoding
-        return HttpHeaders.getContentLength(request, 0) != 0 || HttpHeaders.isTransferEncodingChunked(request);
+        // Http requests don't have a body if they define 0 content length and no transfer encoding
+        // If they define neither a content length and a transfer encoding it could be a gzip request
+        return HttpHeaders.getContentLength(request, 0) != 0 == HttpHeaders.isContentLengthSet(request) ||
+                HttpHeaders.isTransferEncodingChunked(request);
     }
 
     @Override
