@@ -74,19 +74,6 @@ public class HttpStreamsTest {
     }
 
     @Test
-    public void emptyRequestResponse() throws Exception {
-        createEchoServer();
-        client.writeAndFlush(helper.createStreamedRequest("POST", "/", Collections.<String>emptyList()));
-        FullHttpResponse response = receiveFullResponse();
-
-        helper.assertRequestTypeFull(response);
-        assertFalse(helper.hasRequestContentLength(response));
-
-        assertEquals(helper.extractBody(response), "");
-        assertEquals(HttpHeaders.getContentLength(response), 0);
-    }
-
-    @Test
     public void zeroLengthRequestResponse() throws Exception {
         createEchoServer();
         client.writeAndFlush(helper.createStreamedRequest("POST", "/", Collections.<String>emptyList(), 0));
