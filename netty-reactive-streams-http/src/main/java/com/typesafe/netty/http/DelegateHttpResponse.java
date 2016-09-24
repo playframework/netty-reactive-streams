@@ -1,10 +1,8 @@
 package com.typesafe.netty.http;
 
-import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import org.reactivestreams.Publisher;
 
 class DelegateHttpResponse extends DelegateHttpMessage implements HttpResponse {
 
@@ -22,8 +20,14 @@ class DelegateHttpResponse extends DelegateHttpMessage implements HttpResponse {
     }
 
     @Override
+    @Deprecated
     public HttpResponseStatus getStatus() {
-        return response.getStatus();
+        return response.status();
+    }
+
+    @Override
+    public HttpResponseStatus status() {
+        return response.status();
     }
 
     @Override

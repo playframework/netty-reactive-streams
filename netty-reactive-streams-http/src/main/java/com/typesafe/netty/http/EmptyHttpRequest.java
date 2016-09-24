@@ -35,7 +35,7 @@ class EmptyHttpRequest extends DelegateHttpRequest implements FullHttpRequest {
         if (request instanceof FullHttpRequest) {
             return new EmptyHttpRequest(((FullHttpRequest) request).copy());
         } else {
-            DefaultHttpRequest copy = new DefaultHttpRequest(getProtocolVersion(), getMethod(), getUri());
+            DefaultHttpRequest copy = new DefaultHttpRequest(protocolVersion(), method(), uri());
             copy.headers().set(headers());
             return new EmptyHttpRequest(copy);
         }
@@ -54,14 +54,50 @@ class EmptyHttpRequest extends DelegateHttpRequest implements FullHttpRequest {
     }
 
     @Override
+    public FullHttpRequest touch() {
+        if (request instanceof FullHttpRequest) {
+            return ((FullHttpRequest) request).touch();
+        } else {
+            return this;
+        }
+    }
+
+    @Override
+    public FullHttpRequest touch(Object o) {
+        if (request instanceof FullHttpRequest) {
+            return ((FullHttpRequest) request).touch(o);
+        } else {
+            return this;
+        }
+    }
+
+    @Override
     public HttpHeaders trailingHeaders() {
         return new DefaultHttpHeaders();
     }
 
     @Override
-    public HttpContent duplicate() {
-        if (request instanceof HttpContent) {
-            return ((HttpContent) request).duplicate();
+    public FullHttpRequest duplicate() {
+        if (request instanceof FullHttpRequest) {
+            return ((FullHttpRequest) request).duplicate();
+        } else {
+            return this;
+        }
+    }
+
+    @Override
+    public FullHttpRequest retainedDuplicate() {
+        if (request instanceof FullHttpRequest) {
+            return ((FullHttpRequest) request).retainedDuplicate();
+        } else {
+            return this;
+        }
+    }
+
+    @Override
+    public FullHttpRequest replace(ByteBuf byteBuf) {
+        if (message instanceof FullHttpRequest) {
+            return ((FullHttpRequest) request).replace(byteBuf);
         } else {
             return this;
         }

@@ -1,10 +1,8 @@
 package com.typesafe.netty.http;
 
-import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
-import org.reactivestreams.Publisher;
 
 class DelegateHttpRequest extends DelegateHttpMessage implements HttpRequest {
 
@@ -28,13 +26,25 @@ class DelegateHttpRequest extends DelegateHttpMessage implements HttpRequest {
     }
 
     @Override
+    @Deprecated
     public HttpMethod getMethod() {
-        return request.getMethod();
+        return request.method();
     }
 
     @Override
+    public HttpMethod method() {
+        return request.method();
+    }
+
+    @Override
+    @Deprecated
     public String getUri() {
-        return request.getUri();
+        return request.uri();
+    }
+
+    @Override
+    public String uri() {
+        return request.uri();
     }
 
     @Override

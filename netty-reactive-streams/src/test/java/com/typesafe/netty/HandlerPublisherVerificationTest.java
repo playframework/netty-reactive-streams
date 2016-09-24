@@ -2,8 +2,8 @@ package com.typesafe.netty;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.DefaultEventLoopGroup;
 import io.netty.channel.local.LocalChannel;
-import io.netty.channel.local.LocalEventLoopGroup;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.tck.PublisherVerification;
 import org.reactivestreams.tck.TestEnvironment;
@@ -24,7 +24,7 @@ public class HandlerPublisherVerificationTest extends PublisherVerification<Long
     private final boolean scheduled;
 
     private ScheduledExecutorService executor;
-    private LocalEventLoopGroup eventLoop;
+    private DefaultEventLoopGroup eventLoop;
 
     // For debugging, change the data provider to simple, and adjust the parameters below
     @Factory(dataProvider = "noScheduled")
@@ -74,7 +74,7 @@ public class HandlerPublisherVerificationTest extends PublisherVerification<Long
     // doesn't happen if you create 32 publishers in a single test.
     @BeforeMethod
     public void startEventLoop() {
-        eventLoop = new LocalEventLoopGroup();
+        eventLoop = new DefaultEventLoopGroup();
     }
 
     @AfterMethod

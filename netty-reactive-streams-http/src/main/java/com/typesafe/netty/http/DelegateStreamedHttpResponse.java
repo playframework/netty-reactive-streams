@@ -2,8 +2,6 @@ package com.typesafe.netty.http;
 
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 

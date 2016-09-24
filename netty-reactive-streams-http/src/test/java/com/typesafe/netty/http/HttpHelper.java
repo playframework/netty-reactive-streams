@@ -52,17 +52,17 @@ public class HttpHelper {
                 throw new IllegalArgumentException("Unsupported HTTP request: " + request);
             }
 
-            if (HttpHeaders.isTransferEncodingChunked(request)) {
-                HttpHeaders.setTransferEncodingChunked(response);
-            } else if (HttpHeaders.isContentLengthSet(request)) {
-                long contentLength = HttpHeaders.getContentLength(request);
+            if (HttpUtil.isTransferEncodingChunked(request)) {
+                HttpUtil.setTransferEncodingChunked(response, true);
+            } else if (HttpUtil.isContentLengthSet(request)) {
+                long contentLength = HttpUtil.getContentLength(request);
                 response.headers().set("Request-Content-Length", contentLength);
-                HttpHeaders.setContentLength(response, contentLength);
+                HttpUtil.setContentLength(response, contentLength);
             } else {
-                HttpHeaders.setContentLength(response, 0);
+                HttpUtil.setContentLength(response, 0);
             }
 
-            HttpHeaders.setHeader(response, "Request-Uri", request.getUri());
+            response.headers().set("Request-Uri", request.uri());
         } else {
             throw new IllegalArgumentException("Unsupported message: " + msg);
         }
@@ -82,20 +82,20 @@ public class HttpHelper {
 
     public StreamedHttpRequest createStreamedRequest(String method, String uri, List<String> body, long contentLength) {
         StreamedHttpRequest request = createStreamedRequest(method, uri, body);
-        HttpHeaders.setContentLength(request, contentLength);
+        HttpUtil.setContentLength(request, contentLength);
         return request;
     }
 
     public StreamedHttpRequest createChunkedRequest(String method, String uri, List<String> body) {
         StreamedHttpRequest request = createStreamedRequest(method, uri, body);
-        HttpHeaders.setTransferEncodingChunked(request);
+        HttpUtil.setTransferEncodingChunked(request, true);
         return request;
     }
 
     public FullHttpResponse createFullResponse(String body) {
         ByteBuf content = Unpooled.copiedBuffer(body, Charset.forName("utf-8"));
         FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, content);
-        HttpHeaders.setContentLength(response, content.readableBytes());
+        HttpUtil.setContentLength(response, content.readableBytes());
         return response;
     }
 
@@ -106,7 +106,7 @@ public class HttpHelper {
         }
         Publisher<HttpContent> publisher = Source.from(content).runWith(Sink.<HttpContent>asPublisher(AsPublisher.WITH_FANOUT), materializer);
         StreamedHttpResponse response = new DefaultStreamedHttpResponse(version, HttpResponseStatus.OK, publisher);
-        HttpHeaders.setContentLength(response, contentLength);
+        HttpUtil.setContentLength(response, contentLength);
         return response;
     }
 

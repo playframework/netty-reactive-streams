@@ -66,7 +66,7 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
     protected boolean hasBody(HttpRequest request) {
         // Http requests don't have a body if they define 0 content length, or no content length and no transfer
         // encoding
-        return HttpHeaders.getContentLength(request, 0) != 0 || HttpHeaders.isTransferEncodingChunked(request);
+        return HttpUtil.getContentLength(request, 0) != 0 || HttpUtil.isTransferEncodingChunked(request);
     }
 
     @Override
@@ -89,7 +89,7 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
         if (msg instanceof HttpRequest) {
             HttpRequest request = (HttpRequest) msg;
             lastRequest = request;
-            if (HttpHeaders.is100ContinueExpected(request)) {
+            if (HttpUtil.is100ContinueExpected(request)) {
                 continueExpected = true;
             }
         }
@@ -105,7 +105,7 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
     protected void sentOutMessage(ChannelHandlerContext ctx) {
         inFlight--;
         if (inFlight == 1 && continueExpected && sendContinue) {
-            ctx.writeAndFlush(new DefaultFullHttpResponse(lastRequest.getProtocolVersion(), HttpResponseStatus.CONTINUE));
+            ctx.writeAndFlush(new DefaultFullHttpResponse(lastRequest.protocolVersion(), HttpResponseStatus.CONTINUE));
             sendContinue = false;
             continueExpected = false;
         }
@@ -127,8 +127,8 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
                 webSocketResponse = out;
             }
         } else {
-            String connection = out.message.headers().get(HttpHeaders.Names.CONNECTION);
-            if (lastRequest.getProtocolVersion().isKeepAliveDefault()) {
+            String connection = out.message.headers().get(HttpHeaderNames.CONNECTION);
+            if (lastRequest.protocolVersion().isKeepAliveDefault()) {
                 if ("close".equalsIgnoreCase(connection)) {
                     close = true;
                 }
@@ -138,15 +138,15 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
                 }
             }
             if (inFlight == 1 && continueExpected) {
-                HttpHeaders.setKeepAlive(out.message, false);
+                HttpUtil.setKeepAlive(out.message, false);
                 close = true;
                 continueExpected = false;
             }
             // According to RFC 7230 a server MUST NOT send a Content-Length or a Transfer-Encoding when the status
             // code is 1xx or 204, also a status code 304 may not have a Content-Length or Transfer-Encoding set.
-            if (!HttpHeaders.isContentLengthSet(out.message) && !HttpHeaders.isTransferEncodingChunked(out.message)
+            if (!HttpUtil.isContentLengthSet(out.message) && !HttpUtil.isTransferEncodingChunked(out.message)
                     && canHaveBody(out.message)) {
-                HttpHeaders.setKeepAlive(out.message, false);
+                HttpUtil.setKeepAlive(out.message, false);
                 close = true;
             }
             super.unbufferedWrite(ctx, out);
@@ -154,7 +154,7 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
     }
 
     private boolean canHaveBody(HttpResponse message) {
-        HttpResponseStatus status = message.getStatus();
+        HttpResponseStatus status = message.status();
         // All 1xx (Informational), 204 (No Content), and 304 (Not Modified)
         // responses do not include a message body
         return !(status == HttpResponseStatus.CONTINUE || status == HttpResponseStatus.SWITCHING_PROTOCOLS ||
@@ -178,8 +178,8 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
             HttpResponse res = new DefaultFullHttpResponse(
                     HttpVersion.HTTP_1_1,
                     HttpResponseStatus.UPGRADE_REQUIRED);
-            res.headers().set(HttpHeaders.Names.SEC_WEBSOCKET_VERSION, WebSocketVersion.V13.toHttpHeaderValue());
-            HttpHeaders.setContentLength(res, 0);
+            res.headers().set(HttpHeaderNames.SEC_WEBSOCKET_VERSION, WebSocketVersion.V13.toHttpHeaderValue());
+            HttpUtil.setContentLength(res, 0);
             super.unbufferedWrite(ctx, new Outgoing(res, out.promise));
             response.subscribe(new CancelledSubscriber<>());
         } else {
@@ -209,7 +209,7 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
     protected void bodyRequested(ChannelHandlerContext ctx) {
         if (continueExpected) {
             if (inFlight == 1) {
-                ctx.writeAndFlush(new DefaultFullHttpResponse(lastRequest.getProtocolVersion(), HttpResponseStatus.CONTINUE));
+                ctx.writeAndFlush(new DefaultFullHttpResponse(lastRequest.protocolVersion(), HttpResponseStatus.CONTINUE));
                 continueExpected = false;
             } else {
                 sendContinue = true;
