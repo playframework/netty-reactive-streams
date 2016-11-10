@@ -76,7 +76,7 @@
             </dependency>
             <dependency>
                 <groupId>com.typesafe.akka</groupId>
-                <artifactId>akka-stream_2.11</artifactId>
+                <artifactId>akka-stream_2.12</artifactId>
                 <version>${akka-stream.version}</version>
                 <scope>test</scope>
             </dependency>
@@ -86,7 +86,7 @@
     <properties>
         <netty.version>4.1.6.Final</netty.version>
         <reactive-streams.version>1.0.0</reactive-streams.version>
-        <akka-stream.version>2.4.10</akka-stream.version>
+        <akka-stream.version>2.4.12</akka-stream.version>
     </properties>
 
     <build>
