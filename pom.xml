@@ -9,13 +9,13 @@
     <name>Netty Reactive Streams Parent POM</name>
     <description>Reactive streams implementation for Netty.</description>
     <inceptionYear>2015</inceptionYear>
-    <url>https://github.com/typesafehub/netty-reactive-streams</url>
+    <url>https://github.com/playframework/netty-reactive-streams</url>
 
     <packaging>pom</packaging>
 
     <issueManagement>
         <system>GitHub Issues</system>
-        <url>https://github.com/typesafehub/netty-reactive-streams/issues</url>
+        <url>https://github.com/playframework/netty-reactive-streams/issues</url>
     </issueManagement>
 
     <licenses>
@@ -71,7 +71,7 @@
             <dependency>
                 <groupId>org.testng</groupId>
                 <artifactId>testng</artifactId>
-                <version>6.9.4</version>
+                <version>6.10</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
@@ -84,9 +84,9 @@
     </dependencyManagement>
 
     <properties>
-        <netty.version>4.1.6.Final</netty.version>
+        <netty.version>4.1.7.Final</netty.version>
         <reactive-streams.version>1.0.0</reactive-streams.version>
-        <akka-stream.version>2.4.12</akka-stream.version>
+        <akka-stream.version>2.4.16</akka-stream.version>
     </properties>
 
     <build>
@@ -94,9 +94,9 @@
           <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-compiler-plugin</artifactId>
-              <version>3.2</version>
+              <version>3.6.1</version>
               <configuration>
-                  <source>1.7</source>
+                  <source>1.8</source>
                   <target>1.7</target>
               </configuration>
           </plugin>
@@ -133,7 +133,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
-                        <version>2.4</version>
+                        <version>3.0.1</version>
                         <executions>
                             <execution>
                                 <id>attach-sources</id>
@@ -176,9 +176,9 @@
     </profiles>
 
     <scm>
-        <connection>scm:git://github.com/typesafehub/netty-reactive-streams.git</connection>
-        <developerConnection>scm:git:git@github.com:typesafehub/netty-reactive-streams.git</developerConnection>
-        <url>scm:git://github.com/typesafehub/netty-reactive-streams.git</url>
+        <connection>scm:git://github.com/playframework/netty-reactive-streams.git</connection>
+        <developerConnection>scm:git:git@github.com:playframework/netty-reactive-streams.git</developerConnection>
+        <url>scm:git://github.com/playframework/netty-reactive-streams.git</url>
         <tag>HEAD</tag>
     </scm>
 
