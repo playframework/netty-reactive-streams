@@ -1,1 +1,12 @@
 target
+
+*.iml
+.idea/
+.project
+.settings/
+netty-reactive-streams-http/.classpath
+netty-reactive-streams-http/.project
+netty-reactive-streams-http/.settings/
+netty-reactive-streams/.classpath
+netty-reactive-streams/.project
+netty-reactive-streams/.settings/
