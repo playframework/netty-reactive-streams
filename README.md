@@ -1,6 +1,6 @@
 # Netty Reactive Streams
 
-[![Build Status](https://travis-ci.org/typesafehub/netty-reactive-streams.svg?branch=master)](https://travis-ci.org/typesafehub/netty-reactive-streams) [![codecov.io](https://codecov.io/github/typesafehub/netty-reactive-streams/coverage.svg?branch=master)](https://codecov.io/github/typesafehub/netty-reactive-streams?branch=master)
+[![Build Status](https://travis-ci.org/playframework/netty-reactive-streams.svg?branch=master)](https://travis-ci.org/playframework/netty-reactive-streams) [![codecov.io](https://codecov.io/github/playframework/netty-reactive-streams/coverage.svg?branch=master)](https://codecov.io/github/playframework/netty-reactive-streams?branch=master)
 
 This provides a reactive streams implementation for Netty.  Essentially it comes in the form of two channel handlers, one that publishes inbound messages received on a channel to a `Publisher`, and another that writes messages received by a `Subscriber` outbound.
 
