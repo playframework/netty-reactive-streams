@@ -11,6 +11,23 @@ Features include:
 * Multiple publishers/subscribers can be inserted into the pipeline.
 * Customisable cancel/complete/failure handling.
 
+## Releasing a new version
+
+This project is released and published through Sonatype.  You must have Sonatype credentials installed, preferably in `$HOME/.m2/settings.xml` and a GPG key that is available to the standard GPG keyservers.  If your key is not on the server, you should add it to the keyserver as follows:
+
+```
+gpg --send-key <MY_KEYID> --keyserver pgp.mit.edu
+```
+
+After that, you can perform a release through the following commands:
+
+```
+mvn release:prepare -Darguments=-Dgpg.passphrase=thephrase
+mvn release:perform -Darguments=-Dgpg.passphrase=thephrase
+```
+
+This will push a release to the staging repository and automatically close and publish the staging repository to production.
+
 ## Using the publisher/subscriber
 
 Here's an example of creating a client channel that publishes/subscribes to `ByteBuf`'s:
