@@ -41,11 +41,11 @@ public class HttpHelper {
 
             HttpRequest request = (HttpRequest) msg;
             if (request instanceof FullHttpRequest) {
-                response = new DefaultFullHttpResponse(request.getProtocolVersion(), HttpResponseStatus.OK,
+                response = new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.OK,
                         ((FullHttpRequest) msg).content());
                 response.headers().set("Request-Type", "Full");
             } else if (request instanceof StreamedHttpRequest) {
-                response = new DefaultStreamedHttpResponse(request.getProtocolVersion(), HttpResponseStatus.OK,
+                response = new DefaultStreamedHttpResponse(request.protocolVersion(), HttpResponseStatus.OK,
                         ((StreamedHttpRequest) msg));
                 response.headers().set("Request-Type", "Streamed");
             } else {

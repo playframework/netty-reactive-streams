@@ -151,7 +151,7 @@ public class WebSocketsTest {
 
     @AfterClass
     public void stopEventLoop() {
-        actorSystem.shutdown();
+        actorSystem.terminate();
         eventLoop.shutdownGracefully();
     }
 

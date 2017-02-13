@@ -271,7 +271,7 @@ public class HttpStreamsTest {
             @Override
             public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
                 HttpResponse response = helper.createFullResponse("");
-                response.headers().set(HttpHeaders.Names.CONNECTION, "close");
+                response.headers().set(HttpHeaderNames.CONNECTION, "close");
                 ctx.writeAndFlush(response);
             }
         });
@@ -290,7 +290,7 @@ public class HttpStreamsTest {
             @Override
             public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
                 HttpResponse response = helper.createStreamedResponse(HttpVersion.HTTP_1_1, Arrays.asList("hello", " ", "world"), 11);
-                response.headers().set(HttpHeaders.Names.CONNECTION, "close");
+                response.headers().set(HttpHeaderNames.CONNECTION, "close");
                 ctx.writeAndFlush(response);
             }
         });

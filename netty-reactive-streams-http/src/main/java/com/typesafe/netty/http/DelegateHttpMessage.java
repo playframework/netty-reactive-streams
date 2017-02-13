@@ -2,7 +2,6 @@ package com.typesafe.netty.http;
 
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.*;
-import org.reactivestreams.Publisher;
 
 class DelegateHttpMessage implements HttpMessage {
     protected final HttpMessage message;

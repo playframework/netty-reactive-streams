@@ -84,9 +84,9 @@
     </dependencyManagement>
 
     <properties>
-        <netty.version>4.1.7.Final</netty.version>
+        <netty.version>4.1.8.Final</netty.version>
         <reactive-streams.version>1.0.0</reactive-streams.version>
-        <akka-stream.version>2.4.16</akka-stream.version>
+        <akka-stream.version>2.4.17</akka-stream.version>
     </properties>
 
     <build>
