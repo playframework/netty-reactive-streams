@@ -7,7 +7,7 @@ import java.net.SocketAddress;
 /**
  * A closed loop channel that sends no events and receives no events, for testing purposes.
  *
- * Any outgoing events that reach the channel will throw an exception. All events shoud be caught
+ * Any outgoing events that reach the channel will throw an exception. All events should be caught
  * be inserting a handler that catches them and responds accordingly.
  */
 public class ClosedLoopChannel extends AbstractChannel {
