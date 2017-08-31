@@ -222,7 +222,9 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
         super.handlerRemoved(ctx);
         for (ChannelHandler dependent: dependentHandlers) {
             try {
-                ctx.pipeline().remove(dependent);
+                // guard to hopefully avoid unnecessary exceptions
+                if (ctx.pipeline().context(dependent) != null)
+                    ctx.pipeline().remove(dependent);
             } catch (NoSuchElementException e) {
                 // Ignore, maybe something else removed it
             }
