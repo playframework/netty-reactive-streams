@@ -195,9 +195,9 @@
     </profiles>
 
     <scm>
-        <connection>scm:git://github.com/playframework/netty-reactive-streams.git</connection>
+        <connection>scm:git:https://github.com/playframework/netty-reactive-streams.git</connection>
         <developerConnection>scm:git:git@github.com:playframework/netty-reactive-streams.git</developerConnection>
-        <url>scm:git://github.com/playframework/netty-reactive-streams.git</url>
+        <url>https://github.com/playframework/netty-reactive-streams</url>
         <tag>HEAD</tag>
     </scm>
 
