@@ -94,10 +94,40 @@
           <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-compiler-plugin</artifactId>
-              <version>3.6.1</version>
+              <version>3.7.0</version>
+              <!--
+                Due to module-info we need to compile the project twice
+                See: https://maven.apache.org/plugins/maven-compiler-plugin/examples/module-info.html
+              -->
+              <executions>
+                  <execution>
+                      <id>default-compile</id>
+                      <configuration>
+                          <release>9</release>
+                      </configuration>
+                  </execution>
+                  <execution>
+                      <id>base-compile</id>
+                      <goals>
+                          <goal>compile</goal>
+                      </goals>
+                      <configuration>
+                          <excludes>
+                              <exclude>module-info.java</exclude>
+                          </excludes>
+                      </configuration>
+                  </execution>
+              </executions>
+              <!-- defaults for compile and testCompile -->
               <configuration>
-                  <source>1.7</source>
-                  <target>1.7</target>
+                  <!--
+                        Only required when JAVA_HOME isn't at least Java 9 and when
+                        haven't configured the maven-toolchains-plugin
+                  -->
+                  <jdkToolchain>
+                      <version>9</version>
+                  </jdkToolchain>
+                  <release>7</release>
               </configuration>
           </plugin>
           <plugin>
