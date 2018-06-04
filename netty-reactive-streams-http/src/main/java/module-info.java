@@ -1,7 +1,7 @@
 module com.typesafe.netty.http {
     requires netty.codec.http;
     requires reactive.streams;
-    requires rt;
+    requires java.base;
     requires netty.codec;
     requires netty.buffer;
     requires netty.common;
