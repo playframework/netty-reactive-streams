@@ -70,6 +70,6 @@ In addition to raw reactive streams support, the `netty-reactive-streams-http` l
 
 ## Support
 
-The Play Mailer library is *[Community Driven][]*.
+The Netty Reactive Streams library is *[Supported][]*.
 
-[Community Driven]: https://developer.lightbend.com/docs/reactive-platform/2.0/support-terminology/index.html#community-driven
+[Supported]: https://developer.lightbend.com/docs/lightbend-platform/introduction/getting-help/support-terminology.html#supported
