@@ -3,7 +3,6 @@ package com.typesafe.netty.http;
 import akka.NotUsed;
 import akka.actor.ActorSystem;
 import akka.japi.function.Function;
-import akka.stream.ActorMaterializer;
 import akka.stream.Materializer;
 import akka.stream.javadsl.*;
 import io.netty.channel.*;
@@ -56,7 +55,7 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
     public void start() throws Exception {
         executorService = Executors.newCachedThreadPool();
         actorSystem = ActorSystem.create();
-        materializer = ActorMaterializer.create(actorSystem);
+        materializer = Materializer.matFromSystem(actorSystem);
         helper = new HttpHelper(materializer);
         eventLoop = new NioEventLoopGroup();
         ProcessorHttpServer server = new ProcessorHttpServer(eventLoop);
