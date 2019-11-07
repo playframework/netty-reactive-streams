@@ -2,7 +2,6 @@ package com.typesafe.netty.http;
 
 import akka.actor.ActorSystem;
 import akka.japi.function.Function;
-import akka.stream.ActorMaterializer;
 import akka.stream.Materializer;
 import akka.stream.javadsl.Flow;
 import com.typesafe.netty.HandlerPublisher;
@@ -343,7 +342,7 @@ public class HttpStreamsTest {
     public void startEventLoop() {
         eventLoop = new NioEventLoopGroup();
         actorSystem = ActorSystem.create();
-        materializer = ActorMaterializer.create(actorSystem);
+        materializer = Materializer.matFromSystem(actorSystem);
         helper = new HttpHelper(materializer);
     }
 

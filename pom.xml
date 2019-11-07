@@ -71,7 +71,7 @@
             <dependency>
                 <groupId>org.testng</groupId>
                 <artifactId>testng</artifactId>
-                <version>6.10</version>
+                <version>7.0.0</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
@@ -86,7 +86,7 @@
     <properties>
         <netty.version>4.1.43.Final</netty.version>
         <reactive-streams.version>1.0.3</reactive-streams.version>
-        <akka-stream.version>2.5.21</akka-stream.version>
+        <akka-stream.version>2.6.0</akka-stream.version>
         <maven-bundle-plugin.version>3.5.1</maven-bundle-plugin.version>
         <maven-jar-plugin.version>3.1.0</maven-jar-plugin.version>
     </properties>

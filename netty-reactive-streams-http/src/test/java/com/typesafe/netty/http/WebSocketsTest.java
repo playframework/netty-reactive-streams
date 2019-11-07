@@ -2,7 +2,6 @@ package com.typesafe.netty.http;
 
 import akka.actor.ActorSystem;
 import akka.japi.function.Function;
-import akka.stream.ActorMaterializer;
 import akka.stream.Materializer;
 import akka.stream.javadsl.Flow;
 import io.netty.bootstrap.Bootstrap;
@@ -146,7 +145,7 @@ public class WebSocketsTest {
     public void startEventLoop() {
         eventLoop = new NioEventLoopGroup();
         actorSystem = ActorSystem.create();
-        materializer = ActorMaterializer.create(actorSystem);
+        materializer = Materializer.matFromSystem(actorSystem);
     }
 
     @AfterClass
