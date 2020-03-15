@@ -84,7 +84,7 @@
     </dependencyManagement>
 
     <properties>
-        <netty.version>4.1.45.Final</netty.version>
+        <netty.version>4.1.47.Final</netty.version>
         <reactive-streams.version>1.0.3</reactive-streams.version>
         <akka-stream.version>2.6.3</akka-stream.version>
         <maven-bundle-plugin.version>3.5.1</maven-bundle-plugin.version>
