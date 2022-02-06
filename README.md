@@ -1,6 +1,6 @@
 # Netty Reactive Streams
 
-[![Build Status](https://travis-ci.org/playframework/netty-reactive-streams.svg?branch=master)](https://travis-ci.org/playframework/netty-reactive-streams)
+[![Build Status](https://travis-ci.org/playframework/netty-reactive-streams.svg?branch=main)](https://travis-ci.org/playframework/netty-reactive-streams)
 
 This provides a reactive streams implementation for Netty.  Essentially it comes in the form of two channel handlers, one that publishes inbound messages received on a channel to a `Publisher`, and another that writes messages received by a `Subscriber` outbound.
 
