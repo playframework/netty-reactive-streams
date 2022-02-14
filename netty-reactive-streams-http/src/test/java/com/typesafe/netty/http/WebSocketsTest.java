@@ -15,6 +15,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.websocketx.*;
+import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketClientCompressionHandler;
+import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketServerCompressionHandler;
 import io.netty.util.ReferenceCountUtil;
 import org.reactivestreams.Processor;
 import org.testng.annotations.AfterClass;
@@ -41,8 +43,12 @@ public class WebSocketsTest {
     private BlockingQueue<Object> clientEvents = new LinkedBlockingQueue<>();
     private int port;
 
-    @Test
-    public void simpleWebSocket() throws Exception {
+    /**
+     * Note: withCompression and withoutExtensions will not work as compression requires Extensions.
+     * @param withCompression Enable Compression for this test
+     * @param withExtensions Enable WebSocket Extensions on the handshaker
+     */
+    private void simpleWebSocket(boolean withCompression, boolean withExtensions) throws Exception {
         start(new AutoReadHandler() {
             @Override
             public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -68,13 +74,13 @@ public class WebSocketsTest {
 
                     ctx.writeAndFlush(new DefaultWebSocketHttpResponse(request.protocolVersion(),
                             HttpResponseStatus.valueOf(200), processor,
-                            new WebSocketServerHandshakerFactory("ws://127.0.0.1/" + port + "/", null, false)
+                            new WebSocketServerHandshakerFactory("ws://127.0.0.1/" + port + "/", null, withExtensions)
                     ));
                 }
             }
-        });
+        }, withCompression);
 
-        makeWebSocketRequest();
+        makeWebSocketRequest(withCompression, withExtensions);
         assertNoMessages();
         client.writeAndFlush(new TextWebSocketFrame("hello"));
         assertEquals(readTextFrame(), "echo hello");
@@ -104,6 +110,21 @@ public class WebSocketsTest {
 
         client.close();
         assertNoMessages();
+    }
+
+    @Test
+    public void simpleWebSocketWithCompressionAndExtensions() throws Exception {
+        simpleWebSocket(true, true);
+    }
+
+    @Test
+    public void simpleWebSocketWithoutCompressionWithoutExtensions() throws Exception {
+        simpleWebSocket(false, false);
+    }
+
+    @Test
+    public void simpleWebSocketWithoutCompressionWithExtensions() throws Exception {
+        simpleWebSocket(false, true);
     }
 
     @Test
@@ -166,6 +187,10 @@ public class WebSocketsTest {
     }
 
     private void start(final ChannelHandler handler) throws InterruptedException {
+        start(handler, false);
+    }
+
+    private void start(final ChannelHandler handler, boolean enableCompression) throws InterruptedException {
         ServerBootstrap bootstrap = new ServerBootstrap();
         bootstrap.group(eventLoop)
                 .channel(NioServerSocketChannel.class)
@@ -179,8 +204,14 @@ public class WebSocketsTest {
                         pipeline.addLast(
                                 new HttpRequestDecoder(),
                                 new HttpResponseEncoder()
-                        ).addLast("serverStreamsHandler", new HttpStreamsServerHandler())
-                                .addLast(handler);
+                        );
+
+                        if (enableCompression) {
+                            pipeline.addLast(new WebSocketServerCompressionHandler());
+                        }
+                        pipeline
+                            .addLast("serverStreamsHandler", new HttpStreamsServerHandler())
+                            .addLast(handler);
                     }
                 });
 
@@ -197,8 +228,11 @@ public class WebSocketsTest {
                     protected void initChannel(SocketChannel ch) throws Exception {
                         final ChannelPipeline pipeline = ch.pipeline();
 
-                        pipeline.addLast(new HttpClientCodec(), new HttpObjectAggregator(8192))
-                                .addLast(new AutoReadHandler() {
+                        pipeline.addLast(new HttpClientCodec(), new HttpObjectAggregator(8192));
+
+                        if (enableCompression) pipeline.addLast(WebSocketClientCompressionHandler.INSTANCE);
+
+                        pipeline.addLast(new AutoReadHandler() {
                                     // Store a reference to the current client events
                                     BlockingQueue<Object> events = clientEvents;
                                     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -211,12 +245,20 @@ public class WebSocketsTest {
         this.client = client.remoteAddress(serverBindChannel.localAddress()).connect().await().channel();
     }
 
-    private void makeWebSocketRequest() throws InterruptedException {
+    private void makeWebSocketRequest(boolean withCompression, boolean withExtensions) throws InterruptedException {
         WebSocketClientHandshaker handshaker = WebSocketClientHandshakerFactory.newHandshaker(
                 URI.create("ws://127.0.0.1:" + port + "/"),
-                WebSocketVersion.V13, null, false, new DefaultHttpHeaders());
+                WebSocketVersion.V13, null, withExtensions, new DefaultHttpHeaders());
         handshaker.handshake(client);
         FullHttpResponse response = receiveFullResponse();
+        HttpHeaders headers = response.headers();
+        if (withCompression) {
+            assertTrue(headers.contains("sec-websocket-extensions"));
+            assertEquals(headers.get("sec-websocket-extensions"), "permessage-deflate");
+        } else {
+            assertTrue(!headers.contains("sec-websocket-extensions") ||
+                    !headers.get("sec-websocket-extensions").contains("permessage-deflate"));
+        }
         handshaker.finishHandshake(client, response);
     }
 
