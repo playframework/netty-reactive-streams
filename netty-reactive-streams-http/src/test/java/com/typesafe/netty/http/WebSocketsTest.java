@@ -48,7 +48,7 @@ public class WebSocketsTest {
      * @param withCompression Enable Compression for this test
      * @param withExtensions Enable WebSocket Extensions on the handshaker
      */
-    private void simpleWebSocket(boolean withCompression, boolean withExtensions) throws Exception {
+    private void simpleWebSocket(final boolean withCompression, final boolean withExtensions) throws Exception {
         start(new AutoReadHandler() {
             @Override
             public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -190,7 +190,7 @@ public class WebSocketsTest {
         start(handler, false);
     }
 
-    private void start(final ChannelHandler handler, boolean enableCompression) throws InterruptedException {
+    private void start(final ChannelHandler handler, final boolean enableCompression) throws InterruptedException {
         ServerBootstrap bootstrap = new ServerBootstrap();
         bootstrap.group(eventLoop)
                 .channel(NioServerSocketChannel.class)
@@ -245,7 +245,7 @@ public class WebSocketsTest {
         this.client = client.remoteAddress(serverBindChannel.localAddress()).connect().await().channel();
     }
 
-    private void makeWebSocketRequest(boolean withCompression, boolean withExtensions) throws InterruptedException {
+    private void makeWebSocketRequest(final boolean withCompression, final boolean withExtensions) throws InterruptedException {
         WebSocketClientHandshaker handshaker = WebSocketClientHandshakerFactory.newHandshaker(
                 URI.create("ws://127.0.0.1:" + port + "/"),
                 WebSocketVersion.V13, null, withExtensions, new DefaultHttpHeaders());
