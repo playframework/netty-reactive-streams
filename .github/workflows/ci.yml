@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - 2.0.x
+  push:
+    branches:
+      - 2.0.x
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        java: [ '8', '11', '17' ]
+        os: [ 'ubuntu-latest' ]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: 'temurin'
+        cache: 'maven'
+    - name: Build
+      run: mvn --no-transfer-progress -B clean package
