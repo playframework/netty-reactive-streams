@@ -68,8 +68,3 @@ For this reason, you should make sure you do one of the following:
 
 In addition to raw reactive streams support, the `netty-reactive-streams-http` library provides some HTTP model abstractions and a handle for implementing HTTP servers/clients that use reactive streams to stream HTTP message bodies.  The `HttpStreamsServerHandler` and `HttpStreamsClientHandler` ensure that every `HttpRequest` and `HttpResponse` in the pipeline is either a `FullHttpRequest` or `FullHttpResponse`, for when the body can be worked with in memory, or `StreamedHttpRequest` or `StreamedHttpResponse`, which are messages that double as `Publisher<HttpContent>` for handling the request/response body.
 
-## Support
-
-The Netty Reactive Streams library is *[Supported][]*.
-
-[Supported]: https://developer.lightbend.com/docs/lightbend-platform/introduction/getting-help/support-terminology.html#supported
