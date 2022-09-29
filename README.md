@@ -1,6 +1,16 @@
 # Netty Reactive Streams
 
-[![Build Status](https://travis-ci.org/playframework/netty-reactive-streams.svg?branch=2.0.x)](https://travis-ci.org/playframework/netty-reactive-streams)
+[![Twitter Follow](https://img.shields.io/twitter/follow/playframework?label=follow&style=flat&logo=twitter&color=brightgreen)](https://twitter.com/playframework)
+[![Discord](https://img.shields.io/discord/931647755942776882?logo=discord&logoColor=white)](https://discord.gg/g5s2vtZ4Fa)
+[![GitHub Discussions](https://img.shields.io/github/discussions/playframework/playframework?&logo=github&color=brightgreen)](https://github.com/playframework/playframework/discussions)
+[![StackOverflow](https://img.shields.io/static/v1?label=stackoverflow&logo=stackoverflow&logoColor=fe7a16&color=brightgreen&message=playframework)](https://stackoverflow.com/tags/playframework)
+[![YouTube](https://img.shields.io/youtube/channel/views/UCRp6QDm5SDjbIuisUpxV9cg?label=watch&logo=youtube&style=flat&color=brightgreen&logoColor=ff0000)](https://www.youtube.com/channel/UCRp6QDm5SDjbIuisUpxV9cg)
+[![Twitch Status](https://img.shields.io/twitch/status/playframework?logo=twitch&logoColor=white&color=brightgreen&label=live%20stream)](https://www.twitch.tv/playframework)
+[![OpenCollective](https://img.shields.io/opencollective/all/playframework?label=financial%20contributors&logo=open-collective)](https://opencollective.com/playframework)
+
+[![Build Status](https://github.com/playframework/netty-reactive-streams/actions/workflows/build-test.yml/badge.svg)](https://github.com/playframework/netty-reactive-streams/actions/workflows/build-test.yml)
+[![Maven](https://img.shields.io/maven-central/v/com.typesafe.netty/netty-reactive-streams.svg?logo=apache-maven)](https://mvnrepository.com/artifact/com.typesafe.netty/netty-reactive-streams)
+[![Repository size](https://img.shields.io/github/repo-size/playframework/netty-reactive-streams.svg?logo=git)](https://github.com/playframework/netty-reactive-streams)
 
 This provides a reactive streams implementation for Netty.  Essentially it comes in the form of two channel handlers, one that publishes inbound messages received on a channel to a `Publisher`, and another that writes messages received by a `Subscriber` outbound.
 
