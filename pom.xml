@@ -84,11 +84,11 @@
     </dependencyManagement>
 
     <properties>
-        <netty.version>4.1.75.Final</netty.version>
-        <reactive-streams.version>1.0.3</reactive-streams.version>
-        <akka-stream.version>2.6.19</akka-stream.version>
-        <maven-bundle-plugin.version>5.1.4</maven-bundle-plugin.version>
-        <maven-jar-plugin.version>3.2.2</maven-jar-plugin.version>
+        <netty.version>4.1.84.Final</netty.version>
+        <reactive-streams.version>1.0.4</reactive-streams.version>
+        <akka-stream.version>2.6.20</akka-stream.version>
+        <maven-bundle-plugin.version>5.1.8</maven-bundle-plugin.version>
+        <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
     </properties>
 
     <build>
@@ -105,7 +105,7 @@
           <plugin>
               <groupId>org.sonatype.plugins</groupId>
               <artifactId>nexus-staging-maven-plugin</artifactId>
-              <version>1.6.12</version>
+              <version>1.6.13</version>
               <extensions>true</extensions>
               <configuration>
                   <serverId>ossrh</serverId>
@@ -172,7 +172,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.3.2</version>
+                        <version>3.4.1</version>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>

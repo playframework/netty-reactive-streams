@@ -113,6 +113,11 @@ public class HttpStreamsServerHandler extends HttpStreamsHandler<HttpRequest, Ht
         if (close) {
             ctx.close();
         }
+
+        // release reference to lastRequest when there are no in flight requests so it can be GC'd
+        if (inFlight == 0) {
+            lastRequest = null;
+        }
     }
 
     @Override
