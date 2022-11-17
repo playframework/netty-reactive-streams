@@ -405,7 +405,9 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
                 break;
             case DEMANDING:
             case IDLE:
-                subscriber.onComplete();
+                if (subscriber != null) {
+                    subscriber.onComplete();
+                }
                 state = DONE;
                 break;
             case NO_SUBSCRIBER_ERROR:
