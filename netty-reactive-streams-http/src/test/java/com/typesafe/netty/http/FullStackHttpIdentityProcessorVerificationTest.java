@@ -8,9 +8,8 @@ import akka.stream.javadsl.*;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.*;
-import org.reactivestreams.Processor;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.tck.IdentityProcessorVerification;
+import org.reactivestreams.FlowAdapters;
+import org.reactivestreams.tck.flow.IdentityFlowProcessorVerification;
 import org.reactivestreams.tck.TestEnvironment;
 import org.testng.annotations.*;
 import scala.concurrent.Await;
@@ -24,21 +23,24 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Flow.Processor;
+import java.util.concurrent.Flow.Publisher;
+
 
 /**
  * This identity processor verification verifies a client making requests to a server, that echos the
  * body back.
- *
+ * <p>
  * The server uses the {@link HttpStreamsServerHandler}, and then exposes the messages sent/received by
  * that using reactive streams.  So it effectively uses streams of streams.  It then uses Akka streams
  * to actually handle the requests, echoing the bodies back in the responses as is.
- *
+ * <p>
  * The client uses the {@link HttpStreamsClientHandler}, and then exposes the messages sent/received by
  * that using reactive streams, so it too is effectively a stream of streams.  Here Akka streams is used
  * to split the String bodies into many chunks, for more interesting verification of the bodies, and then
  * combines all the chunks together back into a String at the end.
  */
-public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProcessorVerification<String> {
+public class FullStackHttpIdentityProcessorVerificationTest extends IdentityFlowProcessorVerification<String> {
 
     private NioEventLoopGroup eventLoop;
     private Channel serverBindChannel;
@@ -86,7 +88,7 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
     }
 
     @Override
-    public Processor<String, String> createIdentityProcessor(int bufferSize) {
+    public Processor<String, String> createIdentityFlowProcessor(int bufferSize) {
 
         ProcessorHttpClient client = new ProcessorHttpClient(eventLoop);
         Processor<HttpRequest, HttpResponse> connection = getProcessor(client);
@@ -98,7 +100,7 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
                     public HttpRequest apply(String body) throws Exception {
                         List<String> content = new ArrayList<>();
                         String[] chunks = body.split(":");
-                        for (String chunk: chunks) {
+                        for (String chunk : chunks) {
                             // Make sure we put the ":" back into the body
                             String c;
                             if (content.isEmpty()) {
@@ -133,9 +135,10 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
     }
 
     @Override
-    public Publisher<String> createFailedPublisher() {
-        return Source.<String>failed(new RuntimeException("failed"))
-                .toMat(Sink.<String>asPublisher(AsPublisher.WITH_FANOUT), Keep.<NotUsed, Publisher<String>>right()).run(materializer);
+    public Publisher<String> createFailedFlowPublisher() {
+        return FlowAdapters.toFlowPublisher(
+                Source.<String>failed(new RuntimeException("failed"))
+                .toMat(Sink.<String>asPublisher(AsPublisher.WITH_FANOUT), Keep.<NotUsed, org.reactivestreams.Publisher<String>>right()).run(materializer));
     }
 
     @Override

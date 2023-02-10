@@ -5,8 +5,8 @@ import com.typesafe.netty.HandlerSubscriber;
 import io.netty.channel.*;
 import io.netty.handler.codec.http.*;
 import io.netty.util.ReferenceCountUtil;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
+import java.util.concurrent.Flow.Publisher;
+import java.util.concurrent.Flow.Subscriber;
 
 import java.util.LinkedList;
 import java.util.Queue;

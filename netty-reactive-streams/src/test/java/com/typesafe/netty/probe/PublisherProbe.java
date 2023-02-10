@@ -1,7 +1,7 @@
 package com.typesafe.netty.probe;
 
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
+import java.util.concurrent.Flow.Subscriber;
+import java.util.concurrent.Flow.Publisher;
 
 public class PublisherProbe<T> extends Probe implements Publisher<T> {
 

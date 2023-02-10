@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.typesafe.netty</groupId>
         <artifactId>netty-reactive-streams-parent</artifactId>
-        <version>2.1.0-SNAPSHOT</version>
+        <version>3.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>netty-reactive-streams-http</artifactId>
@@ -25,7 +25,7 @@
         </dependency>
         <dependency>
             <groupId>org.reactivestreams</groupId>
-            <artifactId>reactive-streams-tck</artifactId>
+            <artifactId>reactive-streams-tck-flow</artifactId>
         </dependency>
         <dependency>
             <groupId>org.testng</groupId>
@@ -51,7 +51,7 @@
                             <goal>copy-resources</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${project.build.resources[0].directory}/META-INF</outputDirectory>
+                            <outputDirectory>${project.build.outputDirectory}/META-INF</outputDirectory>
                             <resources>
                                 <resource>
                                     <directory>../</directory>

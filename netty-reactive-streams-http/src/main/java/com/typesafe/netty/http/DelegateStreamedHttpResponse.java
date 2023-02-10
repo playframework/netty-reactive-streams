@@ -2,8 +2,8 @@ package com.typesafe.netty.http;
 
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpResponse;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
+import java.util.concurrent.Flow.Publisher;
+import java.util.concurrent.Flow.Subscriber;
 
 final class DelegateStreamedHttpResponse extends DelegateHttpResponse implements StreamedHttpResponse {
 

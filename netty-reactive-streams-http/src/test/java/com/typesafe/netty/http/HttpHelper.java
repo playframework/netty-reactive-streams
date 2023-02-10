@@ -9,6 +9,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.*;
 import io.netty.util.ReferenceCountUtil;
+import org.reactivestreams.FlowAdapters;
 import org.reactivestreams.Publisher;
 
 import java.nio.charset.Charset;
@@ -72,12 +73,12 @@ public class HttpHelper {
 
     public StreamedHttpRequest createStreamedRequest(String method, String uri, List<String> body) {
         List<HttpContent> content = new ArrayList<>();
-        for (String chunk: body) {
+        for (String chunk : body) {
             content.add(new DefaultHttpContent(Unpooled.copiedBuffer(chunk, Charset.forName("utf-8"))));
         }
         Publisher<HttpContent> publisher = Source.from(content).runWith(Sink.<HttpContent>asPublisher(AsPublisher.WITH_FANOUT), materializer);
         return new DefaultStreamedHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.valueOf(method), uri,
-                publisher);
+                FlowAdapters.toFlowPublisher(publisher));
     }
 
     public StreamedHttpRequest createStreamedRequest(String method, String uri, List<String> body, long contentLength) {
@@ -101,11 +102,11 @@ public class HttpHelper {
 
     public StreamedHttpResponse createStreamedResponse(HttpVersion version, List<String> body, long contentLength) {
         List<HttpContent> content = new ArrayList<>();
-        for (String chunk: body) {
+        for (String chunk : body) {
             content.add(new DefaultHttpContent(Unpooled.copiedBuffer(chunk, Charset.forName("utf-8"))));
         }
         Publisher<HttpContent> publisher = Source.from(content).runWith(Sink.<HttpContent>asPublisher(AsPublisher.WITH_FANOUT), materializer);
-        StreamedHttpResponse response = new DefaultStreamedHttpResponse(version, HttpResponseStatus.OK, publisher);
+        StreamedHttpResponse response = new DefaultStreamedHttpResponse(version, HttpResponseStatus.OK, FlowAdapters.toFlowPublisher(publisher));
         HttpUtil.setContentLength(response, contentLength);
         return response;
     }
@@ -119,7 +120,7 @@ public class HttpHelper {
             String body = contentAsString((FullHttpMessage) msg);
             return CompletableFuture.completedFuture(body);
         } else if (msg instanceof StreamedHttpMessage) {
-            return Source.fromPublisher((StreamedHttpMessage) msg).runFold("", new Function2<String, HttpContent, String>() {
+            return Source.fromPublisher(FlowAdapters.toPublisher((StreamedHttpMessage) msg)).runFold("", new Function2<String, HttpContent, String>() {
                 @Override
                 public String apply(String body, HttpContent content) throws Exception {
                     return body + contentAsString(content);
@@ -156,7 +157,7 @@ public class HttpHelper {
 
     public void cancelStreamedMessage(Object msg) {
         if (msg instanceof StreamedHttpMessage) {
-            Source.fromPublisher((StreamedHttpMessage) msg).runWith(Sink.<HttpContent>cancelled(), materializer);
+            Source.fromPublisher(FlowAdapters.toPublisher((StreamedHttpMessage) msg)).runWith(Sink.<HttpContent>cancelled(), materializer);
         } else {
             throw new IllegalArgumentException("Unknown message type: " + msg);
         }
