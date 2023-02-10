@@ -3,7 +3,7 @@ package com.typesafe.netty.http;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
-import org.reactivestreams.Processor;
+import java.util.concurrent.Flow.Processor;
 
 
 /**

@@ -10,10 +10,10 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseEncoder;
-import org.reactivestreams.Processor;
 
 import java.net.SocketAddress;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Flow.Processor;
 
 public class ProcessorHttpServer {
 

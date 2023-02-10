@@ -4,8 +4,8 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.DefaultEventLoopGroup;
 import io.netty.channel.local.LocalChannel;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.tck.PublisherVerification;
+import java.util.concurrent.Flow.Publisher;
+import org.reactivestreams.tck.flow.FlowPublisherVerification;
 import org.reactivestreams.tck.TestEnvironment;
 import org.testng.annotations.*;
 
@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-public class HandlerPublisherVerificationTest extends PublisherVerification<Long> {
+public class HandlerPublisherVerificationTest extends FlowPublisherVerification<Long> {
 
     private final int batchSize;
     // The number of elements to publish initially, before the subscriber is received
@@ -98,7 +98,7 @@ public class HandlerPublisherVerificationTest extends PublisherVerification<Long
     }
 
     @Override
-    public Publisher<Long> createPublisher(final long elements) {
+    public Publisher<Long> createFlowPublisher(final long elements) {
         final BatchedProducer out;
         if (scheduled) {
             out = new ScheduledBatchedProducer(elements, batchSize, publishInitial, executor, 5);
@@ -131,7 +131,7 @@ public class HandlerPublisherVerificationTest extends PublisherVerification<Long
     }
 
     @Override
-    public Publisher<Long> createFailedPublisher() {
+    public Publisher<Long> createFailedFlowPublisher() {
         LocalChannel channel = new LocalChannel();
         eventLoop.register(channel);
         HandlerPublisher<Long> publisher = new HandlerPublisher<>(channel.eventLoop(), Long.class);

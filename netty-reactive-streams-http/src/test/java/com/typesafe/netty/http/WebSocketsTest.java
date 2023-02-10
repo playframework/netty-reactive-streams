@@ -19,6 +19,7 @@ import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketCl
 import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketServerCompressionHandler;
 import io.netty.util.ReferenceCountUtil;
 import org.reactivestreams.Processor;
+import org.reactivestreams.FlowAdapters;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -73,7 +74,7 @@ public class WebSocketsTest {
                     }).toProcessor().run(materializer);
 
                     ctx.writeAndFlush(new DefaultWebSocketHttpResponse(request.protocolVersion(),
-                            HttpResponseStatus.valueOf(200), processor,
+                            HttpResponseStatus.valueOf(200), FlowAdapters.toFlowProcessor(processor),
                             new WebSocketServerHandshakerFactory("ws://127.0.0.1/" + port + "/", null, withExtensions)
                     ));
                 }
@@ -139,7 +140,7 @@ public class WebSocketsTest {
                     Processor<WebSocketFrame, WebSocketFrame> processor = Flow.<WebSocketFrame>create().toProcessor().run(materializer);
 
                     ctx.writeAndFlush(new DefaultWebSocketHttpResponse(request.protocolVersion(),
-                            HttpResponseStatus.valueOf(200), processor,
+                            HttpResponseStatus.valueOf(200), FlowAdapters.toFlowProcessor(processor),
                             new WebSocketServerHandshakerFactory("ws://127.0.0.1/" + port + "/", null, false)
                     ));
                 }

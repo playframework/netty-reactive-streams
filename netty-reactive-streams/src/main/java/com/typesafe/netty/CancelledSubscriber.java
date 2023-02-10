@@ -1,7 +1,8 @@
 package com.typesafe.netty;
 
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
+import java.util.concurrent.Flow.Subscriber;
+import java.util.concurrent.Flow.Subscription;
+
 
 /**
  * A cancelled subscriber.

@@ -3,21 +3,21 @@ package com.typesafe.netty;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
-import org.reactivestreams.tck.SubscriberWhiteboxVerification;
+import org.reactivestreams.tck.flow.FlowSubscriberWhiteboxVerification;
 
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.Flow.Subscriber;
+import java.util.concurrent.Flow.Subscription;
 
-public class ProbeHandler<T> extends ChannelDuplexHandler implements SubscriberWhiteboxVerification.SubscriberPuppet {
+public class ProbeHandler<T> extends ChannelDuplexHandler implements FlowSubscriberWhiteboxVerification.SubscriberPuppet {
 
     private static final int NO_CONTEXT = 0;
     private static final int RUN = 1;
     private static final int CANCEL = 2;
 
-    private final SubscriberWhiteboxVerification.WhiteboxSubscriberProbe<T> probe;
+    private final FlowSubscriberWhiteboxVerification.WhiteboxSubscriberProbe<T> probe;
     private final Class<T> clazz;
     private final Queue<WriteEvent> queue = new LinkedList<>();
     private final AtomicInteger state = new AtomicInteger(NO_CONTEXT);
@@ -25,7 +25,7 @@ public class ProbeHandler<T> extends ChannelDuplexHandler implements SubscriberW
     // Netty doesn't provide a way to send errors out, so we capture whether it was an error or complete here
     private volatile Throwable receivedError = null;
 
-    public ProbeHandler(SubscriberWhiteboxVerification.WhiteboxSubscriberProbe<T> probe, Class<T> clazz) {
+    public ProbeHandler(FlowSubscriberWhiteboxVerification.WhiteboxSubscriberProbe<T> probe, Class<T> clazz) {
         this.probe = probe;
         this.clazz = clazz;
     }

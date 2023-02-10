@@ -3,19 +3,19 @@ package com.typesafe.netty;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.embedded.EmbeddedChannel;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
-import org.reactivestreams.tck.SubscriberBlackboxVerification;
+import java.util.concurrent.Flow.Subscriber;
+import java.util.concurrent.Flow.Subscription;
+import org.reactivestreams.tck.flow.FlowSubscriberBlackboxVerification;
 import org.reactivestreams.tck.TestEnvironment;
 
-public class HandlerSubscriberBlackboxVerificationTest extends SubscriberBlackboxVerification<Long> {
+public class HandlerSubscriberBlackboxVerificationTest extends FlowSubscriberBlackboxVerification<Long> {
 
     public HandlerSubscriberBlackboxVerificationTest() {
         super(new TestEnvironment());
     }
 
     @Override
-    public Subscriber<Long> createSubscriber() {
+    public Subscriber<Long> createFlowSubscriber() {
         // Embedded channel requires at least one handler when it's created, but HandlerSubscriber
         // needs the channels event loop in order to be created, so start with a dummy, then replace.
         ChannelHandler dummy = new ChannelDuplexHandler();
@@ -32,7 +32,7 @@ public class HandlerSubscriberBlackboxVerificationTest extends SubscriberBlackbo
     }
 
     @Override
-    public void triggerRequest(Subscriber<? super Long> subscriber) {
+    public void triggerFlowRequest(Subscriber<? super Long> subscriber) {
         EmbeddedChannel channel = ((SubscriberWithChannel) subscriber).channel;
 
         channel.runPendingTasks();
