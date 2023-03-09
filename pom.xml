@@ -28,17 +28,12 @@
 
     <developers>
         <developer>
-            <name>James Roper</name>
-            <email>james@typesafe.com</email>
-            <organization>Typesafe</organization>
-            <organizationUrl>http://typesafe.com</organizationUrl>
+            <id>playframework</id>
+            <name>Play Framework Team</name>
+            <url>https://github.com/playframework</url>
+            <email>contact@playframework.com</email>
         </developer>
     </developers>
-
-    <organization>
-        <name>Typesafe</name>
-        <url>http://typesafe.com/</url>
-    </organization>
 
     <modules>
         <module>netty-reactive-streams</module>
