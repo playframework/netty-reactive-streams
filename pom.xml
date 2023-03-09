@@ -29,11 +29,16 @@
     <developers>
         <developer>
             <id>playframework</id>
-            <name>Play Framework Team</name>
+            <name>The Play Framework Contributors</name>
             <url>https://github.com/playframework</url>
             <email>contact@playframework.com</email>
         </developer>
     </developers>
+
+    <organization>
+        <name>The Play Framework Project</name>
+        <url>https://playframework.com</url>
+    </organization>
 
     <modules>
         <module>netty-reactive-streams</module>
