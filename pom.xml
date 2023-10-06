@@ -75,9 +75,9 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>com.typesafe.akka</groupId>
-                <artifactId>akka-stream_2.12</artifactId>
-                <version>${akka-stream.version}</version>
+                <groupId>org.apache.pekko</groupId>
+                <artifactId>pekko-stream_2.12</artifactId>
+                <version>${pekko-stream.version}</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>
@@ -86,7 +86,7 @@
     <properties>
         <netty.version>4.1.99.Final</netty.version>
         <reactive-streams.version>1.0.4</reactive-streams.version>
-        <akka-stream.version>2.6.21</akka-stream.version>
+        <pekko-stream.version>1.0.1</pekko-stream.version>
         <maven-bundle-plugin.version>5.1.9</maven-bundle-plugin.version>
         <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
     </properties>

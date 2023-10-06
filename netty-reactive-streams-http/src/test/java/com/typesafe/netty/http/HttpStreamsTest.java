@@ -1,9 +1,9 @@
 package com.typesafe.netty.http;
 
-import akka.actor.ActorSystem;
-import akka.japi.function.Function;
-import akka.stream.Materializer;
-import akka.stream.javadsl.Flow;
+import org.apache.pekko.actor.ActorSystem;
+import org.apache.pekko.japi.function.Function;
+import org.apache.pekko.stream.Materializer;
+import org.apache.pekko.stream.javadsl.Flow;
 import com.typesafe.netty.HandlerPublisher;
 import com.typesafe.netty.HandlerSubscriber;
 import io.netty.bootstrap.Bootstrap;
@@ -226,7 +226,7 @@ public class HttpStreamsTest {
                 HandlerPublisher<HttpRequest> publisher = new HandlerPublisher<>(ctx.executor(), HttpRequest.class);
                 HandlerSubscriber<HttpResponse> subscriber = new HandlerSubscriber<>(ctx.executor());
                 ctx.pipeline().addLast(publisher, subscriber);
-                Processor<HttpRequest, HttpResponse> processor = AkkaStreamsUtil.flowToProcessor(Flow.<HttpRequest>create()
+                Processor<HttpRequest, HttpResponse> processor = PekkoStreamsUtil.flowToProcessor(Flow.<HttpRequest>create()
                         .mapAsync(4, new Function<HttpRequest, CompletionStage<String>>() {
                             public CompletionStage<String> apply(HttpRequest request) throws Exception {
                                 return helper.extractBodyAsync(request);

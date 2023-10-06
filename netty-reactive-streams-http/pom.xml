@@ -32,9 +32,8 @@
             <artifactId>testng</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-stream_2.12</artifactId>
-            <version>${akka-stream.version}</version>
+            <groupId>org.apache.pekko</groupId>
+            <artifactId>pekko-stream_2.12</artifactId>
         </dependency>
     </dependencies>
 
