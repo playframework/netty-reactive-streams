@@ -9,7 +9,7 @@
 [![OpenCollective](https://img.shields.io/opencollective/all/playframework?label=financial%20contributors&logo=open-collective)](https://opencollective.com/playframework)
 
 [![Build Status](https://github.com/playframework/netty-reactive-streams/actions/workflows/build-test.yml/badge.svg)](https://github.com/playframework/netty-reactive-streams/actions/workflows/build-test.yml)
-[![Maven](https://img.shields.io/maven-central/v/com.typesafe.netty/netty-reactive-streams.svg?logo=apache-maven)](https://mvnrepository.com/artifact/com.typesafe.netty/netty-reactive-streams)
+[![Maven](https://img.shields.io/maven-central/v/org.playframework.netty/netty-reactive-streams.svg?logo=apache-maven)](https://mvnrepository.com/artifact/org.playframework.netty/netty-reactive-streams)
 [![Repository size](https://img.shields.io/github/repo-size/playframework/netty-reactive-streams.svg?logo=git)](https://github.com/playframework/netty-reactive-streams)
 
 This provides a reactive streams implementation for Netty.  Essentially it comes in the form of two channel handlers, one that publishes inbound messages received on a channel to a `Publisher`, and another that writes messages received by a `Subscriber` outbound.

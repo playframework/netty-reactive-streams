@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.typesafe.netty</groupId>
+        <groupId>org.playframework.netty</groupId>
         <artifactId>netty-reactive-streams-parent</artifactId>
         <version>2.1.0-SNAPSHOT</version>
     </parent>
@@ -73,7 +73,7 @@
                         <configuration>
                             <archive combine.children="append">
                                 <manifestEntries>
-                                    <Automatic-Module-Name>com.typesafe.netty.core</Automatic-Module-Name>
+                                    <Automatic-Module-Name>org.playframework.netty.core</Automatic-Module-Name>
                                 </manifestEntries>
                             </archive>
                         </configuration>
