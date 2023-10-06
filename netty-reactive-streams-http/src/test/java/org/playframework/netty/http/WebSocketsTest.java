@@ -1,4 +1,4 @@
-package com.typesafe.netty.http;
+package org.playframework.netty.http;
 
 import org.apache.pekko.actor.ActorSystem;
 import org.apache.pekko.japi.function.Function;

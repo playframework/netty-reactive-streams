@@ -1,4 +1,4 @@
-package com.typesafe.netty;
+package org.playframework.netty;
 
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;

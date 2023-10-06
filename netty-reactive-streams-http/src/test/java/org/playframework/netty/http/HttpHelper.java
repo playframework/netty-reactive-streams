@@ -1,4 +1,4 @@
-package com.typesafe.netty.http;
+package org.playframework.netty.http;
 
 import org.apache.pekko.japi.function.Function2;
 import org.apache.pekko.stream.Materializer;

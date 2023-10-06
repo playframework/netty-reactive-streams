@@ -1,4 +1,4 @@
-package com.typesafe.netty.http;
+package org.playframework.netty.http;
 
 import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.HttpContent;

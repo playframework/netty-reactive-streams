@@ -1,4 +1,4 @@
-package com.typesafe.netty.probe;
+package org.playframework.netty.probe;
 
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;

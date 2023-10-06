@@ -1,4 +1,4 @@
-package com.typesafe.netty;
+package org.playframework.netty;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;

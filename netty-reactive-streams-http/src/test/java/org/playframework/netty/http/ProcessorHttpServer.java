@@ -1,7 +1,7 @@
-package com.typesafe.netty.http;
+package org.playframework.netty.http;
 
-import com.typesafe.netty.HandlerPublisher;
-import com.typesafe.netty.HandlerSubscriber;
+import org.playframework.netty.HandlerPublisher;
+import org.playframework.netty.HandlerSubscriber;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;

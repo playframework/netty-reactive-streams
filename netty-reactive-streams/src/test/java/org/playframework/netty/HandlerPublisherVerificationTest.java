@@ -1,4 +1,4 @@
-package com.typesafe.netty;
+package org.playframework.netty;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;

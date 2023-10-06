@@ -1,6 +1,6 @@
-package com.typesafe.netty.http;
+package org.playframework.netty.http;
 
-import com.typesafe.netty.CancelledSubscriber;
+import org.playframework.netty.CancelledSubscriber;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.*;

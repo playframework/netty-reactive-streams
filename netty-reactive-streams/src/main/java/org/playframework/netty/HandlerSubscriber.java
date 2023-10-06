@@ -1,4 +1,4 @@
-package com.typesafe.netty;
+package org.playframework.netty;
 
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
@@ -10,7 +10,7 @@ import org.reactivestreams.Subscription;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.typesafe.netty.HandlerSubscriber.State.*;
+import static org.playframework.netty.HandlerSubscriber.State.*;
 
 /**
  * Subscriber that publishes received messages to the handler pipeline.

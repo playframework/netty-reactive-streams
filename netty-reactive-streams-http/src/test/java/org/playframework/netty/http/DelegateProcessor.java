@@ -1,4 +1,4 @@
-package com.typesafe.netty.http;
+package org.playframework.netty.http;
 
 import org.reactivestreams.Processor;
 import org.reactivestreams.Publisher;

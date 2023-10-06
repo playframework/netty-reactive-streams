@@ -1,4 +1,4 @@
-package com.typesafe.netty;
+package org.playframework.netty;
 
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -10,7 +10,7 @@ import io.netty.util.internal.TypeParameterMatcher;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
-import static com.typesafe.netty.HandlerPublisher.State.*;
+import static org.playframework.netty.HandlerPublisher.State.*;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;

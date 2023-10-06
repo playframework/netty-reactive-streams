@@ -1,11 +1,11 @@
-package com.typesafe.netty.http;
+package org.playframework.netty.http;
 
 import org.apache.pekko.actor.ActorSystem;
 import org.apache.pekko.japi.function.Function;
 import org.apache.pekko.stream.Materializer;
 import org.apache.pekko.stream.javadsl.Flow;
-import com.typesafe.netty.HandlerPublisher;
-import com.typesafe.netty.HandlerSubscriber;
+import org.playframework.netty.HandlerPublisher;
+import org.playframework.netty.HandlerSubscriber;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.Unpooled;
