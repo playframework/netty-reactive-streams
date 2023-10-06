@@ -1,10 +1,10 @@
 package com.typesafe.netty.http;
 
-import akka.NotUsed;
-import akka.actor.ActorSystem;
-import akka.japi.function.Function;
-import akka.stream.Materializer;
-import akka.stream.javadsl.*;
+import org.apache.pekko.NotUsed;
+import org.apache.pekko.actor.ActorSystem;
+import org.apache.pekko.japi.function.Function;
+import org.apache.pekko.stream.Materializer;
+import org.apache.pekko.stream.javadsl.*;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.*;
@@ -30,11 +30,11 @@ import java.util.concurrent.TimeUnit;
  * body back.
  *
  * The server uses the {@link HttpStreamsServerHandler}, and then exposes the messages sent/received by
- * that using reactive streams.  So it effectively uses streams of streams.  It then uses Akka streams
+ * that using reactive streams.  So it effectively uses streams of streams.  It then uses Pekko streams
  * to actually handle the requests, echoing the bodies back in the responses as is.
  *
  * The client uses the {@link HttpStreamsClientHandler}, and then exposes the messages sent/received by
- * that using reactive streams, so it too is effectively a stream of streams.  Here Akka streams is used
+ * that using reactive streams, so it too is effectively a stream of streams.  Here Pekko streams is used
  * to split the String bodies into many chunks, for more interesting verification of the bodies, and then
  * combines all the chunks together back into a String at the end.
  */
@@ -72,7 +72,7 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
         serverBindChannel = server.bind(new InetSocketAddress("127.0.0.1", 0), new Callable<Processor<HttpRequest, HttpResponse>>() {
             @Override
             public Processor<HttpRequest, HttpResponse> call() throws Exception {
-                return AkkaStreamsUtil.flowToProcessor(flow, materializer);
+                return PekkoStreamsUtil.flowToProcessor(flow, materializer);
             }
         }).await().channel();
     }
@@ -112,7 +112,7 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
                     }
                 })
                 // Send the flow via the HTTP client connection
-                .via(AkkaStreamsUtil.processorToFlow(connection))
+                .via(PekkoStreamsUtil.processorToFlow(connection))
                 // Convert the responses to Strings
                 .mapAsync(4, new Function<HttpResponse, CompletionStage<String>>() {
                     @Override
@@ -121,7 +121,7 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
                     }
                 });
 
-        return AkkaStreamsUtil.flowToProcessor(flow, materializer);
+        return PekkoStreamsUtil.flowToProcessor(flow, materializer);
     }
 
     private Processor<HttpRequest, HttpResponse> getProcessor(ProcessorHttpClient client) {

@@ -1,9 +1,9 @@
 package com.typesafe.netty.http;
 
-import akka.actor.ActorSystem;
-import akka.japi.function.Function;
-import akka.stream.Materializer;
-import akka.stream.javadsl.Flow;
+import org.apache.pekko.actor.ActorSystem;
+import org.apache.pekko.japi.function.Function;
+import org.apache.pekko.stream.Materializer;
+import org.apache.pekko.stream.javadsl.Flow;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
