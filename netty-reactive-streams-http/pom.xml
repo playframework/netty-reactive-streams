@@ -34,7 +34,6 @@
         <dependency>
             <groupId>com.typesafe.akka</groupId>
             <artifactId>akka-stream_2.12</artifactId>
-            <version>${akka-stream.version}</version>
         </dependency>
     </dependencies>
 
