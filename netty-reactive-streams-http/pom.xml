@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.playframework.netty</groupId>
         <artifactId>netty-reactive-streams-parent</artifactId>
-        <version>3.0.3-SNAPSHOT</version>
+        <version>3.0.3</version>
     </parent>
 
     <artifactId>netty-reactive-streams-http</artifactId>
