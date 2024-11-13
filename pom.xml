@@ -4,7 +4,7 @@
 
     <groupId>com.typesafe.netty</groupId>
     <artifactId>netty-reactive-streams-parent</artifactId>
-    <version>2.0.13-SNAPSHOT</version>
+    <version>2.0.13</version>
 
     <name>Netty Reactive Streams Parent POM</name>
     <description>Reactive streams implementation for Netty.</description>
@@ -205,7 +205,7 @@
         <connection>scm:git:https://github.com/playframework/netty-reactive-streams.git</connection>
         <developerConnection>scm:git:git@github.com:playframework/netty-reactive-streams.git</developerConnection>
         <url>https://github.com/playframework/netty-reactive-streams</url>
-        <tag>HEAD</tag>
+        <tag>netty-reactive-streams-parent-2.0.13</tag>
     </scm>
 
     <distributionManagement>
