@@ -5,7 +5,29 @@ updates:
     schedule:
       interval: "weekly"
   - package-ecosystem: "maven"
+    directory: "/netty-reactive-streams"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "maven"
+    directory: "/netty-reactive-streams-http"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "maven"
     directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "2.0.x"
+    commit-message:
+      prefix: "[2.0.x] "
+  - package-ecosystem: "maven"
+    directory: "/netty-reactive-streams"
+    schedule:
+      interval: "weekly"
+    target-branch: "2.0.x"
+    commit-message:
+      prefix: "[2.0.x] "
+  - package-ecosystem: "maven"
+    directory: "/netty-reactive-streams-http"
     schedule:
       interval: "weekly"
     target-branch: "2.0.x"
