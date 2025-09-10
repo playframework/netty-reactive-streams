@@ -4,7 +4,7 @@
 
     <groupId>org.playframework.netty</groupId>
     <artifactId>netty-reactive-streams-parent</artifactId>
-    <version>3.1.0-M1</version>
+    <version>3.1.0-M2-SNAPSHOT</version>
 
     <name>Netty Reactive Streams Parent POM</name>
     <description>Reactive streams implementation for Netty.</description>
