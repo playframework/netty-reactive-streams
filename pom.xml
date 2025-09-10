@@ -205,7 +205,7 @@
         <connection>scm:git:https://github.com/playframework/netty-reactive-streams.git</connection>
         <developerConnection>scm:git:git@github.com:playframework/netty-reactive-streams.git</developerConnection>
         <url>https://github.com/playframework/netty-reactive-streams</url>
-        <tag>netty-reactive-streams-parent-3.0.3</tag>
+        <tag>netty-reactive-streams-parent-3.0.4</tag>
     </scm>
 
     <distributionManagement>
