@@ -87,7 +87,7 @@
         <netty.version>4.1.128.Final</netty.version>
         <reactive-streams.version>1.0.4</reactive-streams.version>
         <akka-stream.version>2.6.21</akka-stream.version>
-        <maven-bundle-plugin.version>5.1.9</maven-bundle-plugin.version>
+        <maven-bundle-plugin.version>6.0.0</maven-bundle-plugin.version>
         <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
     </properties>
 
