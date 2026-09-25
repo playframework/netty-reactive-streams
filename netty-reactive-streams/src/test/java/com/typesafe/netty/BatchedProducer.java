@@ -17,6 +17,7 @@ public class BatchedProducer extends ChannelOutboundHandlerAdapter {
     protected final long eofOn;
     protected final int batchSize;
     protected final AtomicLong sequence;
+    private final Object emissionLock = new Object();
 
     public BatchedProducer(long eofOn, int batchSize, long sequence) {
         this.eofOn = eofOn;
@@ -35,13 +36,16 @@ public class BatchedProducer extends ChannelOutboundHandlerAdapter {
         ctx.pipeline().channel().eventLoop().parent().execute(new Runnable() {
             @Override
             public void run() {
-                for (int i = 0; i < batchSize && sequence.get() != eofOn; i++) {
-                    ctx.fireChannelRead(sequence.getAndIncrement());
-                }
-                if (eofOn == sequence.get()) {
-                    ctx.fireChannelInactive();
-                } else {
-                    ctx.fireChannelReadComplete();
+                // Read tasks may run on different event loops, so emit each batch and its terminal signal in order.
+                synchronized (emissionLock) {
+                    for (int i = 0; i < batchSize && sequence.get() < eofOn; i++) {
+                        ctx.fireChannelRead(sequence.getAndIncrement());
+                    }
+                    if (sequence.get() >= eofOn) {
+                        ctx.fireChannelInactive();
+                    } else {
+                        ctx.fireChannelReadComplete();
+                    }
                 }
             }
         });
