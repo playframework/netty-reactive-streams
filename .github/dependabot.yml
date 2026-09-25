@@ -10,6 +10,12 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "2.0.x"
+    # TestNG 7.6+ requires Java 11; Bundle Plugin 6+ requires Java 17.
+    ignore:
+      - dependency-name: "org.testng:testng"
+        versions: ["[7.6.0,)"]
+      - dependency-name: "org.apache.felix:maven-bundle-plugin"
+        versions: ["[6.0.0,)"]
     commit-message:
       prefix: "[2.0.x] "
   - package-ecosystem: "maven"
@@ -17,6 +23,12 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "3.0.x"
+    # TestNG 7.6+ requires Java 11; Bundle Plugin 6+ requires Java 17.
+    ignore:
+      - dependency-name: "org.testng:testng"
+        versions: ["[7.6.0,)"]
+      - dependency-name: "org.apache.felix:maven-bundle-plugin"
+        versions: ["[6.0.0,)"]
     commit-message:
       prefix: "[3.0.x] "
   - package-ecosystem: "github-actions"
