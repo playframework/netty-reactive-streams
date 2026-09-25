@@ -273,7 +273,8 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
     }
 
     private void maybeRequestMore() {
-        // Read the terminal flag after isWritable(), immediately before requesting more demand.
+        // Writability can change before onSubscribe, and writes can finish after a terminal signal.
+        // RUNNING guards the first case. Read terminated after isWritable() to catch a signal during that check.
         if (state == RUNNING && outstandingDemand <= demandLowWatermark && ctx.channel().isWritable() && !terminated) {
             long toRequest = demandHighWatermark - outstandingDemand;
 

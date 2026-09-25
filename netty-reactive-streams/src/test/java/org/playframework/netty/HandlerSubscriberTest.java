@@ -118,7 +118,7 @@ public class HandlerSubscriberTest {
             HandlerSubscriber<Object> subscriber = new HandlerSubscriber<Object>(channel.eventLoop(), 2, 4) {
                 @Override
                 protected void complete() {
-                    // Like the HttpStreamsHandler body subscriber, keep the channel open and never reach COMPLETE
+                    // Keep the channel open so a later writability event still reaches this subscriber.
                 }
             };
             RecordingSubscription subscription = new RecordingSubscription();
