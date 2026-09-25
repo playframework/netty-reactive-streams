@@ -3,13 +3,13 @@ package org.playframework.netty;
 import io.netty.channel.*;
 import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Promise;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.tck.SubscriberWhiteboxVerification;
+import java.util.concurrent.Flow.Subscriber;
+import org.reactivestreams.tck.flow.FlowSubscriberWhiteboxVerification;
 import org.reactivestreams.tck.TestEnvironment;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
-public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhiteboxVerification<Long> {
+public class HandlerSubscriberWhiteboxVerificationTest extends FlowSubscriberWhiteboxVerification<Long> {
 
     private boolean workAroundIssue277;
 
@@ -35,7 +35,7 @@ public class HandlerSubscriberWhiteboxVerificationTest extends SubscriberWhitebo
     }
 
     @Override
-    public Subscriber<Long> createSubscriber(WhiteboxSubscriberProbe<Long> probe) {
+    public Subscriber<Long> createFlowSubscriber(WhiteboxSubscriberProbe<Long> probe) {
 
 
         final ClosedLoopChannel channel = new ClosedLoopChannel();
