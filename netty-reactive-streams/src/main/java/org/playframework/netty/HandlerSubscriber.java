@@ -83,6 +83,8 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
 
     private volatile Subscription subscription;
     private volatile ChannelHandlerContext ctx;
+    // Publisher signals may arrive outside the event loop.
+    private volatile boolean terminated;
 
     private State state = NO_SUBSCRIPTION_OR_CONTEXT;
     private long outstandingDemand = 0;
@@ -230,11 +232,13 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
         if (error == null) {
             throw new NullPointerException("Null error published");
         }
+        terminated = true;
         error(error);
     }
 
     @Override
     public void onComplete() {
+        terminated = true;
         if (lastWriteFuture == null) {
             complete();
         } else {
@@ -269,8 +273,8 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
     }
 
     private void maybeRequestMore() {
-        // Writability changes and write completions can arrive before the subscription or after completion
-        if (state == RUNNING && outstandingDemand <= demandLowWatermark && ctx.channel().isWritable()) {
+        // Read the terminal flag after isWritable(), immediately before requesting more demand.
+        if (state == RUNNING && outstandingDemand <= demandLowWatermark && ctx.channel().isWritable() && !terminated) {
             long toRequest = demandHighWatermark - outstandingDemand;
 
             outstandingDemand = demandHighWatermark;
