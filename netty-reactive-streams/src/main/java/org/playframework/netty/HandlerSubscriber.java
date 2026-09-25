@@ -252,6 +252,11 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
             @Override
             public void run() {
                 switch (state) {
+                    case NO_SUBSCRIPTION_OR_CONTEXT:
+                    case NO_CONTEXT:
+                        // Not added to the pipeline yet, handlerAdded will close the channel
+                        state = COMPLETE;
+                        break;
                     case NO_SUBSCRIPTION:
                     case INACTIVE:
                     case RUNNING:
@@ -264,7 +269,8 @@ public class HandlerSubscriber<T> extends ChannelDuplexHandler implements Subscr
     }
 
     private void maybeRequestMore() {
-        if (outstandingDemand <= demandLowWatermark && ctx.channel().isWritable()) {
+        // Writability changes and write completions can arrive before the subscription or after completion
+        if (state == RUNNING && outstandingDemand <= demandLowWatermark && ctx.channel().isWritable()) {
             long toRequest = demandHighWatermark - outstandingDemand;
 
             outstandingDemand = demandHighWatermark;
