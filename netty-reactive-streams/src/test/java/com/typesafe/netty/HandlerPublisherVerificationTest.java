@@ -29,7 +29,8 @@ public class HandlerPublisherVerificationTest extends PublisherVerification<Long
     // For debugging, change the data provider to simple, and adjust the parameters below
     @Factory(dataProvider = "noScheduled")
     public HandlerPublisherVerificationTest(int batchSize, int publishInitial, boolean scheduled) {
-        super(new TestEnvironment(200));
+        // Give expected signals more time on CI without lengthening no-signal checks.
+        super(new TestEnvironment(500, 200, 200));
         this.batchSize = batchSize;
         this.publishInitial = publishInitial;
         this.scheduled = scheduled;
