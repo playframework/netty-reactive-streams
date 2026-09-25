@@ -429,6 +429,13 @@ public class HandlerPublisher<T> extends ChannelDuplexHandler implements Publish
             case DEMANDING:
             case IDLE:
             case DRAINING:
+                if (subscriber == null) {
+                    // Completed before a subscriber was provided, so deliver the error when it subscribes
+                    noSubscriberError = cause;
+                    state = NO_SUBSCRIBER_ERROR;
+                    cleanup();
+                    break;
+                }
                 state = DONE;
                 cleanup();
                 subscriber.onError(cause);
