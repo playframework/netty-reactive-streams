@@ -16,6 +16,9 @@ updates:
         versions: ["[7.6.0,)"]
       - dependency-name: "org.apache.felix:maven-bundle-plugin"
         versions: ["[6.0.0,)"]
+      # Keep Netty updates on the 4.1.x line.
+      - dependency-name: "io.netty:*"
+        versions: ["[4.2.0,)"]
     commit-message:
       prefix: "[2.0.x] "
   - package-ecosystem: "maven"
@@ -29,6 +32,9 @@ updates:
         versions: ["[7.6.0,)"]
       - dependency-name: "org.apache.felix:maven-bundle-plugin"
         versions: ["[6.0.0,)"]
+      # Keep Netty updates on the 4.1.x line.
+      - dependency-name: "io.netty:*"
+        versions: ["[4.2.0,)"]
     commit-message:
       prefix: "[3.0.x] "
   - package-ecosystem: "github-actions"
