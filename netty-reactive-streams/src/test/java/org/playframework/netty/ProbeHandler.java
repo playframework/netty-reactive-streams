@@ -3,8 +3,8 @@ package org.playframework.netty;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
+import java.util.concurrent.Flow.Subscriber;
+import java.util.concurrent.Flow.Subscription;
 import org.reactivestreams.tck.SubscriberWhiteboxVerification;
 
 import java.util.LinkedList;

@@ -25,7 +25,7 @@
         </dependency>
         <dependency>
             <groupId>org.reactivestreams</groupId>
-            <artifactId>reactive-streams-tck</artifactId>
+            <artifactId>reactive-streams-tck-flow</artifactId>
         </dependency>
         <dependency>
             <groupId>org.testng</groupId>

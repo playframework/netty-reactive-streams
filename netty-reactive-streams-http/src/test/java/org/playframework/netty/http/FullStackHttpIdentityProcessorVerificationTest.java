@@ -8,9 +8,9 @@ import org.apache.pekko.stream.javadsl.*;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.*;
-import org.reactivestreams.Processor;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.tck.IdentityProcessorVerification;
+import java.util.concurrent.Flow.Processor;
+import java.util.concurrent.Flow.Publisher;
+import org.reactivestreams.tck.flow.IdentityFlowProcessorVerification;
 import org.reactivestreams.tck.TestEnvironment;
 import org.testng.annotations.*;
 import scala.concurrent.Await;
@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
  * to split the String bodies into many chunks, for more interesting verification of the bodies, and then
  * combines all the chunks together back into a String at the end.
  */
-public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProcessorVerification<String> {
+public class FullStackHttpIdentityProcessorVerificationTest extends IdentityFlowProcessorVerification<String> {
 
     private NioEventLoopGroup eventLoop;
     private Channel serverBindChannel;
@@ -86,7 +86,7 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
     }
 
     @Override
-    public Processor<String, String> createIdentityProcessor(int bufferSize) {
+    public Processor<String, String> createIdentityFlowProcessor(int bufferSize) {
 
         ProcessorHttpClient client = new ProcessorHttpClient(eventLoop);
         Processor<HttpRequest, HttpResponse> connection = getProcessor(client);
@@ -133,9 +133,9 @@ public class FullStackHttpIdentityProcessorVerificationTest extends IdentityProc
     }
 
     @Override
-    public Publisher<String> createFailedPublisher() {
+    public Publisher<String> createFailedFlowPublisher() {
         return Source.<String>failed(new RuntimeException("failed"))
-                .toMat(Sink.<String>asPublisher(AsPublisher.WITH_FANOUT), Keep.<NotUsed, Publisher<String>>right()).run(materializer);
+                .toMat(JavaFlowSupport.Sink.<String>asPublisher(AsPublisher.WITH_FANOUT), Keep.<NotUsed, Publisher<String>>right()).run(materializer);
     }
 
     @Override
