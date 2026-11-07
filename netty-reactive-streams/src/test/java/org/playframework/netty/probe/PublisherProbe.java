@@ -1,7 +1,7 @@
 package org.playframework.netty.probe;
 
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
+import java.util.concurrent.Flow.Publisher;
+import java.util.concurrent.Flow.Subscriber;
 
 public class PublisherProbe<T> extends Probe implements Publisher<T> {
 

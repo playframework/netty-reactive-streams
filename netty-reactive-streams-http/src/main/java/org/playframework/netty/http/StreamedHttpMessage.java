@@ -2,7 +2,7 @@ package org.playframework.netty.http;
 
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpMessage;
-import org.reactivestreams.Publisher;
+import java.util.concurrent.Flow.Publisher;
 
 /**
  * Combines {@link HttpMessage} and {@link Publisher} into one
