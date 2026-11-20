@@ -8,7 +8,7 @@ import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketVersion;
-import org.reactivestreams.Publisher;
+import java.util.concurrent.Flow.Publisher;
 
 import java.util.Collections;
 import java.util.List;

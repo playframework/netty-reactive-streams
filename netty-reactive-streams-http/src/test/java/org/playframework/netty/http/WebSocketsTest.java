@@ -4,6 +4,7 @@ import org.apache.pekko.actor.ActorSystem;
 import org.apache.pekko.japi.function.Function;
 import org.apache.pekko.stream.Materializer;
 import org.apache.pekko.stream.javadsl.Flow;
+import org.apache.pekko.stream.javadsl.JavaFlowSupport;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
@@ -18,7 +19,7 @@ import io.netty.handler.codec.http.websocketx.*;
 import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketClientCompressionHandler;
 import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketServerCompressionHandler;
 import io.netty.util.ReferenceCountUtil;
-import org.reactivestreams.Processor;
+import java.util.concurrent.Flow.Processor;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -56,7 +57,7 @@ public class WebSocketsTest {
                     HttpRequest request = (HttpRequest) msg;
                     ReferenceCountUtil.release(msg);
 
-                    Processor<WebSocketFrame, WebSocketFrame> processor = Flow.<WebSocketFrame>create().map(new Function<WebSocketFrame, WebSocketFrame>() {
+                    Processor<WebSocketFrame, WebSocketFrame> processor = JavaFlowSupport.Flow.toProcessor(Flow.<WebSocketFrame>create().map(new Function<WebSocketFrame, WebSocketFrame>() {
                         public WebSocketFrame apply(WebSocketFrame msg) throws Exception {
                             if (msg instanceof TextWebSocketFrame) {
                                 TextWebSocketFrame echo = new TextWebSocketFrame("echo " + ((TextWebSocketFrame) msg).text());
@@ -70,7 +71,7 @@ public class WebSocketsTest {
                                 throw new IllegalArgumentException("Unexpected websocket frame: " + msg);
                             }
                         }
-                    }).toProcessor().run(materializer);
+                    })).run(materializer);
 
                     ctx.writeAndFlush(new DefaultWebSocketHttpResponse(request.protocolVersion(),
                             HttpResponseStatus.valueOf(200), processor,
@@ -136,7 +137,7 @@ public class WebSocketsTest {
                     HttpRequest request = (HttpRequest) msg;
                     ReferenceCountUtil.release(msg);
 
-                    Processor<WebSocketFrame, WebSocketFrame> processor = Flow.<WebSocketFrame>create().toProcessor().run(materializer);
+                    Processor<WebSocketFrame, WebSocketFrame> processor = JavaFlowSupport.Flow.toProcessor(Flow.<WebSocketFrame>create()).run(materializer);
 
                     ctx.writeAndFlush(new DefaultWebSocketHttpResponse(request.protocolVersion(),
                             HttpResponseStatus.valueOf(200), processor,

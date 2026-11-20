@@ -8,7 +8,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.*;
 import io.netty.util.concurrent.*;
-import org.reactivestreams.Processor;
+import java.util.concurrent.Flow.Processor;
 
 import java.net.SocketAddress;
 

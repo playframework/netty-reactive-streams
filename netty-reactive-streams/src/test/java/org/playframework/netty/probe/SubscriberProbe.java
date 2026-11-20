@@ -1,7 +1,7 @@
 package org.playframework.netty.probe;
 
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
+import java.util.concurrent.Flow.Subscriber;
+import java.util.concurrent.Flow.Subscription;
 
 public class SubscriberProbe<T> extends Probe implements Subscriber<T> {
 
